@@ -13,6 +13,7 @@ allprojects {
         google()
         mavenCentral()
         maven { url "https://jitpack.io" }
+        maven { url "https://packagecloud.io/priv/a6a37650d06c0577abe2f3945bdb0094163afbc8699345e8/tooz/bto/maven2" }
     }
 }
 

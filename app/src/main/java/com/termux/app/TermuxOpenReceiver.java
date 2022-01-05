@@ -27,7 +27,6 @@ import androidx.annotation.NonNull;
 public class TermuxOpenReceiver extends BroadcastReceiver {
 
     private static final String LOG_TAG = "TermuxOpenReceiver";
-
     @Override
     public void onReceive(Context context, Intent intent) {
         final Uri data = intent.getData();

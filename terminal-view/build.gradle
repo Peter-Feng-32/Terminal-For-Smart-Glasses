@@ -6,6 +6,7 @@ android {
 
     dependencies {
         implementation "androidx.annotation:annotation:1.2.0"
+        implementation ('tech.tooz.bto:toozifier:2.12.1@aar') { transitive = true }
         api project(":terminal-emulator")
     }
 

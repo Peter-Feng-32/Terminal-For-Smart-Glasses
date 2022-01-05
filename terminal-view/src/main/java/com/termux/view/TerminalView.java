@@ -5,7 +5,9 @@ import android.annotation.TargetApi;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
+import android.graphics.Bitmap;
 import android.graphics.Canvas;
+import android.graphics.Color;
 import android.graphics.Typeface;
 import android.os.Build;
 import android.os.Handler;
@@ -14,6 +16,7 @@ import android.text.Editable;
 import android.text.InputType;
 import android.text.TextUtils;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.view.ActionMode;
 import android.view.HapticFeedbackConstants;
 import android.view.InputDevice;
@@ -30,12 +33,19 @@ import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputConnection;
 import android.widget.Scroller;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
 
 import com.termux.terminal.KeyHandler;
 import com.termux.terminal.TerminalEmulator;
 import com.termux.terminal.TerminalSession;
 import com.termux.view.textselection.TextSelectionCursorController;
+
+import tooz.bto.common.Constants;
+import tooz.bto.toozifier.Toozifier;
+import tooz.bto.toozifier.ToozifierFactory;
+import tooz.bto.toozifier.error.ErrorCause;
+import tooz.bto.toozifier.registration.RegistrationListener;
 
 /** View displaying and interacting with a {@link TerminalSession}. */
 public final class TerminalView extends View {
@@ -51,6 +61,12 @@ public final class TerminalView extends View {
     public TerminalRenderer mRenderer;
 
     public TerminalViewClient mClient;
+
+    /** TODO: TOOZ */
+    public Toozifier toozifier;
+    public RegistrationListener toozRegistrationListener;
+    boolean toozRegistered = false;
+
 
     private TextSelectionCursorController mTextSelectionCursorController;
 
@@ -889,7 +905,7 @@ public final class TerminalView extends View {
         if (viewWidth == 0 || viewHeight == 0 || mTermSession == null) return;
 
         // Set to 80 and 24 if you want to enable vttest.
-        int newColumns = Math.max(4, (int) (viewWidth / mRenderer.mFontWidth));
+        int newColumns = Math.max(7, (int) (viewWidth / mRenderer.mFontWidth));
         int newRows = Math.max(4, (viewHeight - mRenderer.mFontLineSpacingAndAscent) / mRenderer.mFontLineSpacing);
 
         if (mEmulator == null || (newColumns != mEmulator.mColumns || newRows != mEmulator.mRows)) {
@@ -919,6 +935,51 @@ public final class TerminalView extends View {
             }
 
             mRenderer.render(mEmulator, canvas, mTopRow, sel[0], sel[1], sel[2], sel[3]);
+
+            /*
+            * TODO: Add functionality for drawing to Tooz Glasses Here!
+            * */
+
+            if(toozifier == null || toozRegistrationListener == null) {
+                toozifier = ToozifierFactory.getInstance();
+                toozRegistrationListener = new RegistrationListener() {
+                    @Override
+                    public void onRegisterSuccess() {
+                        toozRegistered = true;
+                        Log.w("Tooz", "Successful Register");
+                    }
+
+                    @Override
+                    public void onRegisterFailure(@NonNull ErrorCause errorCause) {
+                        Log.w("Tooz", errorCause.toString());
+                    }
+
+                    @Override
+                    public void onDeregisterSuccess() {
+                        toozRegistered = false;
+                        Log.w("Tooz", "Successful Deregister");
+                    }
+
+                    @Override
+                    public void onDeregisterFailure(@NonNull ErrorCause errorCause) {
+                        Log.w("Tooz", "Failed Deregister");
+                    }
+                };
+            }
+            if (toozifier.isRegistered()) {
+                Bitmap b = Bitmap.createBitmap(400, 640, Bitmap.Config.ARGB_8888);
+                Canvas c = new Canvas(b);
+                c.drawColor(Color.rgb(0,0,0));
+                mRenderer.renderToTooz(mEmulator, c, mTopRow, sel[0], sel[1], sel[2], sel[3]);
+
+
+                Log.w("Tooz", "Trying to send frame");
+                toozifier.sendFrame(b, Constants.INSTANCE.getFRAME_TIME_TO_LIVE_FOREVER());
+            }
+            else {
+                toozifier.register(getContext().getApplicationContext(), "Termux", toozRegistrationListener);
+                Log.w("Tooz", "Tried to Register");
+            }
 
             // render the text selection handles
             renderTextSelection();
