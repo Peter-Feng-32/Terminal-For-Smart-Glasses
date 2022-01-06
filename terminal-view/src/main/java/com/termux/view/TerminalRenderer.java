@@ -44,6 +44,8 @@ public final class TerminalRenderer {
     int mFontLineSpacingTooz;
     private int mFontAscentTooz;
     int mFontLineSpacingAndAscentTooz;
+    final int leftOffsetTooz = 20;
+    final int maxWidthTooz = 360;
 
     private final float[] asciiMeasures = new float[127];
 
@@ -55,18 +57,22 @@ public final class TerminalRenderer {
         mTextPaint.setAntiAlias(true);
         mTextPaint.setTextSize(textSize);
 
-        //Tooz
+        /**Tooz */
         mTextSizeTooz = textSize;
         mTextPaintTooz.setTypeface(typeface);
+        Typeface toozTypeface = Typeface.create(Typeface.SERIF, 400, false);
+        //mTextPaintTooz.setTypeface(toozTypeface);
         mTextPaintTooz.setAntiAlias(true);
         mTextPaintTooz.setTextSize(textSize);
+        mTextPaintTooz.setLetterSpacing(-0.25f);
 
         mFontLineSpacing = (int) Math.ceil(mTextPaint.getFontSpacing());
         mFontAscent = (int) Math.ceil(mTextPaint.ascent());
         mFontLineSpacingAndAscent = mFontLineSpacing + mFontAscent;
         mFontWidth = mTextPaint.measureText("X");
 
-        //Tooz
+
+        /**Tooz*/
         mFontLineSpacingTooz = (int) Math.ceil(mTextPaintTooz.getFontSpacing());
         mFontAscentTooz = (int) Math.ceil(mTextPaintTooz.ascent());
         mFontLineSpacingAndAscentTooz = mFontLineSpacingTooz + mFontAscentTooz;
@@ -201,23 +207,28 @@ public final class TerminalRenderer {
          * TODO: Figure out a better way to implement this hacky solution/why it's needed
          * Not sure why this has to be scaled up when the canvas width is 400 and the screen is 400 pixels.
         //But for some reason a text width of 400 leaves ~1/1.22 of the glasses screen unused,
-        //So we end up treating it as if we sent a bitmap of size 488 instead.*/
+        //So we end up treating it as if we sent a bitmap of size 488 instead.
 
-        int maxWidth = (int)(400*1.22)- 10;
+         Update: Fixed, there was a bug in the code where it was using the phone font's width to detect width mismatch,
+         and scaling down the font size to compensate when drawing.
+
+         */
+
+
 
         char[] spacesArray = new char[columns];
         Arrays.fill(spacesArray, 'X');
         String spaces = new String(spacesArray);
 
-        if (mTextPaintTooz.measureText(spaces) < maxWidth) {
+        if (mTextPaintTooz.measureText(spaces) < maxWidthTooz) {
             do {
                 mTextPaintTooz.setTextSize(++ mTextSizeTooz);
-            } while(mTextPaintTooz.measureText(spaces) < maxWidth);
+            } while(mTextPaintTooz.measureText(spaces) < maxWidthTooz);
 
-        } else if (mTextPaintTooz.measureText(spaces) > maxWidth) {
+        } else if (mTextPaintTooz.measureText(spaces) > maxWidthTooz) {
             do {
                 mTextPaintTooz.setTextSize(-- mTextSizeTooz);
-            } while(mTextPaintTooz.measureText(spaces) > maxWidth);
+            } while(mTextPaintTooz.measureText(spaces) > maxWidthTooz);
 
         }
         Log.w("Tooz", String.format("Size Info: %d chars and %f width, canvas width %d", columns, mTextPaintTooz.measureText(spaces), canvas.getWidth()));
@@ -275,7 +286,8 @@ public final class TerminalRenderer {
                 // If this is detected, we draw this code point scaled to match what wcwidth() expects.
                 final float measuredCodePointWidth = (codePoint < asciiMeasures.length) ? asciiMeasures[codePoint] : mTextPaintTooz.measureText(line,
                     currentCharIndex, charsForCodePoint);
-                final boolean fontWidthMismatch = Math.abs(measuredCodePointWidth / mFontWidth - codePointWcWidth) > 0.01;
+
+                final boolean fontWidthMismatch = Math.abs(measuredCodePointWidth / mFontWidthTooz - codePointWcWidth) > 0.01;
 
                 if (style != lastRunStyle || insideCursor != lastRunInsideCursor || insideSelection != lastRunInsideSelection || fontWidthMismatch || lastRunFontWidthMismatch) {
                     if (column == 0) {
@@ -438,7 +450,7 @@ public final class TerminalRenderer {
             backColor = tmp;
         }
 
-        float left = startColumn * mFontWidthTooz;
+        float left = startColumn * mFontWidthTooz + leftOffsetTooz;
         float right = left + runWidthColumns * mFontWidthTooz;
 
         mes = mes / mFontWidthTooz;
