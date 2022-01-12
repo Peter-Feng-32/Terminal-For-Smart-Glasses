@@ -969,7 +969,7 @@ public final class TerminalView extends View {
             if (toozifier.isRegistered()) {
                 Bitmap b = Bitmap.createBitmap(400, 640, Bitmap.Config.ARGB_8888);
                 Canvas c = new Canvas(b);
-                c.drawColor(Color.rgb(0,0,0));
+                c.drawColor(Color.rgb(0,0,55));
                 mRenderer.renderToTooz(mEmulator, c, mTopRow, sel[0], sel[1], sel[2], sel[3]);
 
 

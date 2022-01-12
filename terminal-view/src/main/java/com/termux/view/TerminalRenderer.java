@@ -14,7 +14,6 @@ import com.termux.terminal.TextStyle;
 import com.termux.terminal.WcWidth;
 
 import java.util.Arrays;
-import java.util.Collections;
 
 
 /**
@@ -45,7 +44,9 @@ public final class TerminalRenderer {
     private int mFontAscentTooz;
     int mFontLineSpacingAndAscentTooz;
     final int leftOffsetTooz = 20;
-    final int maxWidthTooz = 360;
+    //Tooz is 640 x 400.  Portrait mode.
+    final int MAXWIDTHTOOZ = 360;
+    final int MAXHEIGHTTOOZ = 600;
 
     private final float[] asciiMeasures = new float[127];
 
@@ -217,39 +218,62 @@ public final class TerminalRenderer {
 
 
         char[] spacesArray = new char[columns];
-        Arrays.fill(spacesArray, 'X');
+        Arrays.fill(spacesArray, ' ');
         String spaces = new String(spacesArray);
 
-        if (mTextPaintTooz.measureText(spaces) < maxWidthTooz) {
+        if (mTextPaintTooz.measureText(spaces) < MAXWIDTHTOOZ) {
             do {
                 mTextPaintTooz.setTextSize(++ mTextSizeTooz);
-            } while(mTextPaintTooz.measureText(spaces) < maxWidthTooz);
+            } while(mTextPaintTooz.measureText(spaces) < MAXWIDTHTOOZ);
 
-        } else if (mTextPaintTooz.measureText(spaces) > maxWidthTooz) {
+        } else if (mTextPaintTooz.measureText(spaces) > MAXWIDTHTOOZ) {
             do {
                 mTextPaintTooz.setTextSize(-- mTextSizeTooz);
-            } while(mTextPaintTooz.measureText(spaces) > maxWidthTooz);
-
+            } while(mTextPaintTooz.measureText(spaces) > MAXWIDTHTOOZ);
         }
-        Log.w("Tooz", String.format("Size Info: %d chars and %f width, canvas width %d", columns, mTextPaintTooz.measureText(spaces), canvas.getWidth()));
-        //Update Font Size
-        //Next Step: Only do this when resizing.
-        mTextPaintTooz.setTextSize(((int) mTextSizeTooz) );
+
         mFontLineSpacingTooz = (int) Math.ceil(mTextPaintTooz.getFontSpacing());
         mFontAscentTooz = (int) Math.ceil(mTextPaintTooz.ascent());
         mFontLineSpacingAndAscentTooz = mFontLineSpacingTooz + mFontAscentTooz;
-        mFontWidthTooz = mTextPaintTooz.measureText("X");
+        mFontWidthTooz = mTextPaintTooz.measureText(" ");
 
+        int textHeight = mFontLineSpacingAndAscentTooz + mFontLineSpacingTooz * mEmulator.mRows;
+        while (textHeight >= MAXHEIGHTTOOZ) {
 
-        Log.w("Tooz", String.format("Column Count: %d", columns));
-        Log.w("Tooz" , String.format("Text Size: %d", mTextSizeTooz));
+            //While text height goes off the screen, decrease its size.
+            mTextPaintTooz.setTextSize(--mTextSizeTooz);
+
+            mFontLineSpacingTooz = (int) Math.ceil(mTextPaintTooz.getFontSpacing());
+            mFontAscentTooz = (int) Math.ceil(mTextPaintTooz.ascent());
+            mFontLineSpacingAndAscentTooz = mFontLineSpacingTooz + mFontAscentTooz;
+
+            Log.w("Info1:", String.format("mFontLineSpacingTooz: %d", mFontLineSpacingTooz));
+
+            textHeight = mFontLineSpacingAndAscentTooz + mFontLineSpacingTooz * mEmulator.mRows;
+        }
+
+        /*
+        Log.w("Info2:", String.format("mFontLineSpacingAndAscentTooz: %d, mFontLineSpacingTooz: %d", mFontLineSpacingAndAscentTooz,  (int) Math.ceil(mTextPaintTooz.getFontSpacing())));
+        Log.w("Tooz2", String.format("Size Info: %d chars and %f width, %d height, canvas width %d, canvas height %d", columns, mTextPaintTooz.measureText(spaces), textHeight, canvas.getWidth(), canvas.getHeight()));
+        */
+        mFontLineSpacingTooz = (int) Math.ceil(mTextPaintTooz.getFontSpacing());
+        mFontAscentTooz = (int) Math.ceil(mTextPaintTooz.ascent());
+        mFontLineSpacingAndAscentTooz = mFontLineSpacingTooz + mFontAscentTooz;
+        mFontWidthTooz = mTextPaintTooz.measureText(" ");
+
+        /*
+        Log.w("Info3:", String.format("mFontLineSpacingAndAscentTooz: %d, mFontLineSpacingTooz: %d", mFontLineSpacingAndAscentTooz,  (int) Math.ceil(mTextPaintTooz.getFontSpacing())));
+        Log.w("Tooz3", String.format("Size Info: %d chars and %f width, %d height, canvas width %d, canvas height %d", columns, mTextPaintTooz.measureText(spaces), textHeight, canvas.getWidth(), canvas.getHeight()));
+        */
+
+        //Log.w("Tooz", String.format("Column Count: %d", columns));
+        //Log.w("Tooz" , String.format("Text Size: %d", mTextSizeTooz));
         if (reverseVideo)
             canvas.drawColor(palette[TextStyle.COLOR_INDEX_FOREGROUND], PorterDuff.Mode.SRC);
 
         float heightOffset = mFontLineSpacingAndAscentTooz;
         for (int row = topRow; row < endRow; row++) {
             heightOffset += mFontLineSpacingTooz;
-
             final int cursorX = (row == cursorRow && cursorVisible) ? cursorCol : -1;
             int selx1 = -1, selx2 = -1;
             if (row >= selectionY1 && row <= selectionY2) {
