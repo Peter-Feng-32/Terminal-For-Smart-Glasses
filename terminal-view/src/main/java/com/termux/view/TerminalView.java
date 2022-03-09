@@ -5,6 +5,7 @@ import android.annotation.TargetApi;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
+import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Typeface;
 import android.os.Build;
@@ -38,6 +39,14 @@ import com.termux.terminal.TerminalEmulator;
 import com.termux.terminal.TerminalRow;
 import com.termux.terminal.TerminalSession;
 import com.termux.view.textselection.TextSelectionCursorController;
+
+import org.apache.commons.io.output.ByteArrayOutputStream;
+
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 
 /** View displaying and interacting with a {@link TerminalSession}. */
 public final class TerminalView extends View {
@@ -90,10 +99,13 @@ public final class TerminalView extends View {
 
     /** Necessities for smart-glasses delta rendering */
     private char[][] mScreenCharsPrev;
+    FrameToGlasses glassesHelper;
 
 
     public TerminalView(Context context, AttributeSet attributes) { // NO_UCD (unused code)
         super(context, attributes);
+        glassesHelper = new FrameToGlasses(context);
+
         mGestureRecognizer = new GestureAndScaleRecognizer(context, new GestureAndScaleRecognizer.Listener() {
 
             boolean scrolledWithFinger;
@@ -922,7 +934,16 @@ public final class TerminalView extends View {
             invalidate();
         }
     }
-
+    private static final char[] HEX_ARRAY = "0123456789abcdef".toCharArray();
+    public static String bytesToHex(byte[] bytes) {
+        char[] hexChars = new char[bytes.length * 2];
+        for (int j = 0; j < bytes.length; j++) {
+            int v = bytes[j] & 0xFF;
+            hexChars[j * 2] = HEX_ARRAY[v >>> 4];
+            hexChars[j * 2 + 1] = HEX_ARRAY[v & 0x0F];
+        }
+        return new String(hexChars);
+    }
     @Override
     protected void onDraw(Canvas canvas) {
         if (mEmulator == null) {
@@ -946,20 +967,41 @@ public final class TerminalView extends View {
                 for(int i = 0; i < mEmulator.mRows; i++) {
                     for(int j = 0; j < mEmulator.mColumns; j++){
                         mScreenCharsPrev[i][j] = mEmulator.getScreen().getmLines()[i].getmText()[j];
-                        //render mScreenCharsPrev[i][j]
                     }
                 }
+                Bitmap bitmap = Bitmap.createBitmap(400, 640, Bitmap.Config.ARGB_8888);
+                Canvas toozCanvas = new Canvas(bitmap);
+                mRenderer.render(mEmulator, toozCanvas, mTopRow, sel[0], sel[1], sel[2], sel[3]);
+                ByteArrayOutputStream out = new ByteArrayOutputStream();
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out);
+                byte[] byteArray = out.toByteArray();
+                String s = bytesToHex(byteArray);
+                glassesHelper.sendFrame(s);
+
             }
             else {
                 /** Otherwise, render only updated spots. */
+                //Set a threshold number of changed spots: If under threshold, update changed spots only.  Otherwise update entire screen.
                 for(int i = 0; i < mEmulator.mRows; i++) {
                     for(int j = 0; j < mEmulator.mColumns; j++){
                         if (mScreenCharsPrev[i][j] != mEmulator.getScreen().getmLines()[i].getmText()[j]) {
                             mScreenCharsPrev[i][j] = mEmulator.getScreen().getmLines()[i].getmText()[j];
                             //Render mScreenCharsPrev[i][j]
+
+                            //glassesHelper.sendChar(mScreenCharsPrev[i][j], i, j, mEmulator.mRows, mEmulator.mColumns);
                         }
                     }
                 }
+
+                Bitmap bitmap = Bitmap.createBitmap(400, 640, Bitmap.Config.ARGB_8888);
+                Canvas toozCanvas = new Canvas(bitmap);
+                mRenderer.render(mEmulator, toozCanvas, mTopRow, sel[0], sel[1], sel[2], sel[3]);
+                ByteArrayOutputStream out = new ByteArrayOutputStream();
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out);
+                byte[] byteArray = out.toByteArray();
+                String s = bytesToHex(byteArray);
+                glassesHelper.sendFrame(s);
+
             }
 
 

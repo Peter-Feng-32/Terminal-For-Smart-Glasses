@@ -1,11 +1,16 @@
-package com.termux.terminal;
+package com.termux.view;
 
 
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
+import android.content.Context;
+import android.content.res.AssetManager;
 import android.util.Log;
 
+
+import org.apache.commons.codec.binary.Hex;
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.ArrayUtils;
 
 import java.io.IOException;
@@ -20,6 +25,7 @@ import java.util.UUID;
 
 public class FrameToGlasses {
 
+
     InputStream connectionInputStream;
     OutputStream connectionOutputStream;
     ConnectThread connectThread;
@@ -32,6 +38,8 @@ public class FrameToGlasses {
     String UUID3= "00000000-0000-1000-8000-00805f9b34fb";
     public String MY_UUID = UUID0;
 
+    String[] hexChars = new String[26];
+
     int framesSent;
     int x;
     int y;
@@ -41,7 +49,9 @@ public class FrameToGlasses {
     int timeToLive;
     int loop;
 
-    public FrameToGlasses(){
+    Context context;
+
+    public FrameToGlasses(Context context){
         if(bluetoothAdapter==null) {
             Log.w("Error", "Device doesn't support Bluetooth");
         } else{
@@ -49,6 +59,23 @@ public class FrameToGlasses {
         }
         framesSent = 0;
         configureFrameIDBlock(0, 0, false, false, "jpeg", -1, 1);
+        this.context = context;
+
+        AssetManager assetManager = context.getAssets();
+
+        try {
+            String[] files = assetManager.list("");
+            for(String s : files) {
+                Log.w("Files", s);
+            }
+            //Can send smaller jpegs, but anything bigger than 400x640 will crash the glasses.
+            InputStream input = assetManager.open("20x50CharC.jpg");
+            String charCHexString = Hex.encodeHexString(IOUtils.toByteArray(input));
+            hexChars['c' - 'a'] = charCHexString;
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     /* s must be an even-length string. */
@@ -61,9 +88,33 @@ public class FrameToGlasses {
         return data;
     }
 
+
+    public void sendChar(char c, int row, int col, int totalRows, int totalCols){
+        final int SCREENWIDTH = 400;
+        final int SCREENHEIGHT = 640;
+        //Note: Currently terminal screen is fixed at 18 characters wide, 10 characters tall.
+        //If terminal screen is made taller by hiding keyboard, we just show the bottom 10 rows.
+        //Also consider spacing.
+        //Let's have 2px between each x and 10px between each y.
+        int xSpacing = 2;
+        int ySpacing = 10;
+
+        int charXSize = ((SCREENWIDTH - (totalCols - 1) * xSpacing) / totalCols);
+        int x = (charXSize + xSpacing) * col;
+        int charYSize = ((SCREENHEIGHT - (totalRows - 1) * ySpacing) / totalRows);
+        int y = (charYSize + ySpacing) * row;
+
+        //Then each image should be about 20px by 50px
+        setX(x);
+        setY(y);
+        sendFrame(hexChars['c' - 'a']);
+
+    }
+
+
     public void sendFrame(String imageHexString) {
         if(!isConnected()) {
-            searchAndConnect(MY_UUID);
+            //searchAndConnect(MY_UUID);
         } else {
             byte[] headerBytes = generateHeader(imageHexString);
             byte[] frameIDBlockBytes = generateFrameIDBlock();
