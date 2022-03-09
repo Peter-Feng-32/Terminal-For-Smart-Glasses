@@ -1,7 +1,14 @@
-Problem:
 
+3/9/2022:
+
+Problems to solve:
 Sometimes its good to send individual updates (eg. 1 character is updated) and sometimes its bad(180 characters updated)
 
 How do we decide to send individual updates, update by row, update entire screen, etc?
     Benchmarking?  What would we benchmark?
 How do we generate the jpgs in code for each individual update image?
+    Character Set
+    Current Cursor Location - Needs to be tracked too for updates.
+Scrolling Issue?  Rewrite so we aren't doing renders onDraw?  
+    Look at onScreenUpdated? Different renders for onScroll vs onKeyDown?
+    onScreenUpdated -> Calls invalidate -> Calls onDraw -> Calls drawing functionality
