@@ -473,11 +473,13 @@ public final class TerminalView extends View {
      *
      * @param textSize the new font size, in density-independent pixels.
      */
+    @RequiresApi(api = Build.VERSION_CODES.P)
     public void setTextSize(int textSize) {
         mRenderer = new TerminalRenderer(textSize, mRenderer == null ? Typeface.MONOSPACE : mRenderer.mTypeface);
         updateSize();
     }
 
+    @RequiresApi(api = Build.VERSION_CODES.P)
     public void setTypeface(Typeface newTypeface) {
         mRenderer = new TerminalRenderer(mRenderer.mTextSize, newTypeface);
         updateSize();
@@ -971,7 +973,7 @@ public final class TerminalView extends View {
                 }
                 Bitmap bitmap = Bitmap.createBitmap(400, 640, Bitmap.Config.ARGB_8888);
                 Canvas toozCanvas = new Canvas(bitmap);
-                mRenderer.render(mEmulator, toozCanvas, mTopRow, sel[0], sel[1], sel[2], sel[3]);
+                mRenderer.renderToTooz(mEmulator, toozCanvas, mTopRow, sel[0], sel[1], sel[2], sel[3]);
                 ByteArrayOutputStream out = new ByteArrayOutputStream();
                 bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out);
                 byte[] byteArray = out.toByteArray();
@@ -995,7 +997,7 @@ public final class TerminalView extends View {
 
                 Bitmap bitmap = Bitmap.createBitmap(400, 640, Bitmap.Config.ARGB_8888);
                 Canvas toozCanvas = new Canvas(bitmap);
-                mRenderer.render(mEmulator, toozCanvas, mTopRow, sel[0], sel[1], sel[2], sel[3]);
+                mRenderer.renderToTooz(mEmulator, toozCanvas, mTopRow, sel[0], sel[1], sel[2], sel[3]);
                 ByteArrayOutputStream out = new ByteArrayOutputStream();
                 bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out);
                 byte[] byteArray = out.toByteArray();
