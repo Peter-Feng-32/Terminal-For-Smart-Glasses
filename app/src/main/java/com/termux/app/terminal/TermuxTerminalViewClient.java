@@ -82,7 +82,12 @@ public class TermuxTerminalViewClient extends TermuxTerminalViewClientBase {
      * Should be called when mActivity.onCreate() is called
      */
     public void onCreate() {
-        mActivity.getTerminalView().setTextSize(mActivity.getPreferences().getFontSize());
+        /*
+        todo:
+        Work with a consistent text size for now.
+        */
+
+        mActivity.getTerminalView().setTextSize(65);
         mActivity.getTerminalView().setKeepScreenOn(mActivity.getPreferences().shouldKeepScreenOn());
     }
 

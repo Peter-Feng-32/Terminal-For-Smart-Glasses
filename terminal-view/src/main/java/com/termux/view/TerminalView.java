@@ -14,6 +14,7 @@ import android.text.Editable;
 import android.text.InputType;
 import android.text.TextUtils;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.view.ActionMode;
 import android.view.HapticFeedbackConstants;
 import android.view.InputDevice;
@@ -140,8 +141,17 @@ public final class TerminalView extends View {
             @Override
             public boolean onScale(float focusX, float focusY, float scale) {
                 if (mEmulator == null || isSelectingText()) return true;
+
+                /*
+                todo
+                Currently not dealing with resizing the screen because we are sending JPEGs to a pair of smart-glasses.
+                In the future, figure out how to reimplement resizing.
+                 */
+
+                /*
                 mScaleFactor *= scale;
                 mScaleFactor = mClient.onScale(mScaleFactor);
+                */
                 return true;
             }
 
