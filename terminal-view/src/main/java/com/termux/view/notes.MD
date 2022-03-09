@@ -12,3 +12,6 @@ How do we generate the jpgs in code for each individual update image?
 Scrolling Issue?  Rewrite so we aren't doing renders onDraw?  
     Look at onScreenUpdated? Different renders for onScroll vs onKeyDown?
     onScreenUpdated -> Calls invalidate -> Calls onDraw -> Calls drawing functionality
+    Create an enum of different events that could trigger invalidate and then wherever it is called update a variable with an enum value? 
+        Would allow us to track what is causing the draw.  
+    How to know when we are still scrolling versus when we aren't?  Maybe scrolling is fine but not fling?
