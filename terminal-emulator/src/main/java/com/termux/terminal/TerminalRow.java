@@ -24,6 +24,7 @@ public final class TerminalRow {
     /** If this row might contain chars with width != 1, used for deactivating fast path */
     boolean mHasNonOneWidthOrSurrogateChars;
 
+
     /** Construct a blank row (containing only whitespace, ' ') with a specified style. */
     public TerminalRow(int columns, long style) {
         mColumns = columns;
@@ -60,6 +61,10 @@ public final class TerminalRow {
 
     public int getSpaceUsed() {
         return mSpaceUsed;
+    }
+
+    public char[] getmText() {
+        return mText;
     }
 
     /** Note that the column may end of second half of wide character. */

@@ -35,6 +35,7 @@ import androidx.annotation.RequiresApi;
 
 import com.termux.terminal.KeyHandler;
 import com.termux.terminal.TerminalEmulator;
+import com.termux.terminal.TerminalRow;
 import com.termux.terminal.TerminalSession;
 import com.termux.view.textselection.TextSelectionCursorController;
 
@@ -85,6 +86,11 @@ public final class TerminalView extends View {
     private final boolean mAccessibilityEnabled;
 
     private static final String LOG_TAG = "TerminalView";
+
+
+    /** Necessities for smart-glasses delta rendering */
+    private char[][] mScreenCharsPrev;
+
 
     public TerminalView(Context context, AttributeSet attributes) { // NO_UCD (unused code)
         super(context, attributes);
@@ -929,6 +935,34 @@ public final class TerminalView extends View {
             }
 
             mRenderer.render(mEmulator, canvas, mTopRow, sel[0], sel[1], sel[2], sel[3]);
+
+            /*
+            todo: implement delta updates for rendering to smart-glasses
+             */
+
+            /** If no previous lines or screen got resized, just render directly to glasses. */
+            if (mScreenCharsPrev == null || mScreenCharsPrev.length != mEmulator.mRows) {
+                mScreenCharsPrev = new char[mEmulator.mRows][mEmulator.mColumns];
+                for(int i = 0; i < mEmulator.mRows; i++) {
+                    for(int j = 0; j < mEmulator.mColumns; j++){
+                        mScreenCharsPrev[i][j] = mEmulator.getScreen().getmLines()[i].getmText()[j];
+                        //render mScreenCharsPrev[i][j]
+                    }
+                }
+            }
+            else {
+                /** Otherwise, render only updated spots. */
+                for(int i = 0; i < mEmulator.mRows; i++) {
+                    for(int j = 0; j < mEmulator.mColumns; j++){
+                        if (mScreenCharsPrev[i][j] != mEmulator.getScreen().getmLines()[i].getmText()[j]) {
+                            mScreenCharsPrev[i][j] = mEmulator.getScreen().getmLines()[i].getmText()[j];
+                            //Render mScreenCharsPrev[i][j]
+                        }
+                    }
+                }
+            }
+
+
 
             // render the text selection handles
             renderTextSelection();

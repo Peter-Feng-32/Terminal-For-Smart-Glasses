@@ -37,6 +37,11 @@ public final class TerminalBuffer {
         blockSet(0, 0, columns, screenRows, ' ', TextStyle.NORMAL);
     }
 
+    /** get mLines */
+    public TerminalRow[] getmLines() {
+        return mLines;
+    }
+
     public String getTranscriptText() {
         return getSelectedText(0, -getActiveTranscriptRows(), mColumns, mScreenRows).trim();
     }
