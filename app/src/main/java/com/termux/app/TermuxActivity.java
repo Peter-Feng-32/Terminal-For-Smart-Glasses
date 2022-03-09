@@ -52,8 +52,6 @@ import com.termux.shared.termux.TermuxUtils;
 import com.termux.shared.termux.theme.TermuxThemeUtils;
 import com.termux.shared.theme.NightMode;
 import com.termux.shared.view.ViewUtils;
-import com.termux.terminal.TerminalSession;
-import com.termux.terminal.TerminalSessionClient;
 import com.termux.app.utils.CrashUtils;
 import com.termux.view.TerminalView;
 import com.termux.view.TerminalViewClient;

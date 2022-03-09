@@ -7,7 +7,6 @@ import com.termux.shared.file.filesystem.FileType;
 import com.termux.shared.settings.properties.SharedProperties;
 import com.termux.shared.termux.TermuxConstants;
 import com.termux.shared.logger.Logger;
-import com.termux.terminal.TerminalEmulator;
 import com.termux.view.TerminalView;
 
 import java.io.File;

@@ -10,8 +10,6 @@ import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.View;
 
-import com.termux.terminal.TerminalBuffer;
-import com.termux.terminal.WcWidth;
 import com.termux.view.R;
 import com.termux.view.TerminalView;
 
