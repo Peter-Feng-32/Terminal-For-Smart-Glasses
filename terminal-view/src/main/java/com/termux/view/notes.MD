@@ -15,4 +15,8 @@ Scrolling Issue?  Rewrite so we aren't doing renders onDraw?
     Create an enum of different events that could trigger invalidate and then wherever it is called update a variable with the correct enum value? 
         Can we pass values to onDraw?
     Would allow us to track what is causing the draw.
-    How to know when we are still scrolling versus when we aren't?  Maybe scrolling is fine but not fling?
+    How to know when we are still scrolling versus when we aren't?  Maybe scrolling is fine but not fling? 
+    Or if scrolling, update periodically with another thread?
+    Or maybe update when finger-lift and was scrolling?
+
+Thad: Do everything at the terminal emulator level.  Make the optimal decision for each terminal emulator command.
