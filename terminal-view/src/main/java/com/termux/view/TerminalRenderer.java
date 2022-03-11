@@ -1,6 +1,7 @@
 package com.termux.view;
 
 import android.graphics.Canvas;
+import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.PorterDuff;
 import android.graphics.Typeface;
@@ -360,6 +361,8 @@ public final class TerminalRenderer {
 
     }
 
+
+
     private void drawTextRun(Canvas canvas, char[] text, int[] palette, float y, int startColumn, int runWidthColumns,
                              int startCharIndex, int runWidthChars, float mes, int cursor, int cursorStyle,
                              long textStyle, boolean reverseVideo) {
@@ -522,6 +525,7 @@ public final class TerminalRenderer {
             mTextPaintTooz.setColor(foreColor);
 
             // The text alignment is the default Paint.Align.LEFT.
+            Log.w("Draw", "StartIndex: " + startCharIndex + " runWidth" + runWidthChars + " left: " + left +  " text: " + String.valueOf(text));
             canvas.drawText(text, startCharIndex, runWidthChars, left, y - mFontLineSpacingAndAscentTooz, mTextPaintTooz);
             //canvas.drawText("abcdefghijk", 0, 5, left, y - mFontLineSpacingAndAscent, mTextPaint);
 

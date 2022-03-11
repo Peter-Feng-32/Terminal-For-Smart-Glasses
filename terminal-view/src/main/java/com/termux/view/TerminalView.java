@@ -7,6 +7,7 @@ import android.content.ClipboardManager;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
+import android.graphics.Color;
 import android.graphics.Typeface;
 import android.os.Build;
 import android.os.Handler;
@@ -963,50 +964,18 @@ public final class TerminalView extends View {
             todo: implement delta updates for rendering to smart-glasses
              */
 
-            /** If no previous lines or screen got resized, just render directly to glasses. */
-            if (mScreenCharsPrev == null || mScreenCharsPrev.length != mEmulator.mRows) {
-                mScreenCharsPrev = new char[mEmulator.mRows][mEmulator.mColumns];
-                for(int i = 0; i < mEmulator.mRows; i++) {
-                    for(int j = 0; j < mEmulator.mColumns; j++){
-                        mScreenCharsPrev[i][j] = mEmulator.getScreen().getmLines()[i].getmText()[j];
-                    }
-                }
-                Bitmap bitmap = Bitmap.createBitmap(400, 640, Bitmap.Config.ARGB_8888);
-                Canvas toozCanvas = new Canvas(bitmap);
-                mRenderer.renderToTooz(mEmulator, toozCanvas, mTopRow, sel[0], sel[1], sel[2], sel[3]);
-                ByteArrayOutputStream out = new ByteArrayOutputStream();
-                bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out);
-                byte[] byteArray = out.toByteArray();
-                String s = bytesToHex(byteArray);
-                glassesHelper.sendFrame(s);
 
-            }
-            else {
-                /** Otherwise, render only updated spots. */
-                //Set a threshold number of changed spots: If under threshold, update changed spots only.  Otherwise update entire screen.
-                for(int i = 0; i < mEmulator.mRows; i++) {
-                    for(int j = 0; j < mEmulator.mColumns; j++){
-                        if (mScreenCharsPrev[i][j] != mEmulator.getScreen().getmLines()[i].getmText()[j]) {
-                            mScreenCharsPrev[i][j] = mEmulator.getScreen().getmLines()[i].getmText()[j];
-                            //Render mScreenCharsPrev[i][j]
+            Bitmap bitmap = Bitmap.createBitmap(400, 60, Bitmap.Config.ARGB_8888);
+            Canvas toozCanvas = new Canvas(bitmap);
+            toozCanvas.drawColor(Color.BLUE);
 
-                            //glassesHelper.sendChar(mScreenCharsPrev[i][j], i, j, mEmulator.mRows, mEmulator.mColumns);
-                        }
-                    }
-                }
-
-                Bitmap bitmap = Bitmap.createBitmap(400, 640, Bitmap.Config.ARGB_8888);
-                Canvas toozCanvas = new Canvas(bitmap);
-                mRenderer.renderToTooz(mEmulator, toozCanvas, mTopRow, sel[0], sel[1], sel[2], sel[3]);
-                ByteArrayOutputStream out = new ByteArrayOutputStream();
-                bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out);
-                byte[] byteArray = out.toByteArray();
-                String s = bytesToHex(byteArray);
-                glassesHelper.sendFrame(s);
-
-            }
-
-
+            mRenderer.renderToTooz(mEmulator, canvas, mTopRow, sel[0], sel[1], sel[2], sel[3]);
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out);
+            byte[] byteArray = out.toByteArray();
+            String s = bytesToHex(byteArray);
+            Log.w("Sent", s);
+            glassesHelper.sendFrame(s);
 
             // render the text selection handles
             renderTextSelection();
