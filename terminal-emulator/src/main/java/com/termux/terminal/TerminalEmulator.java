@@ -1,6 +1,7 @@
 package com.termux.terminal;
 
 import android.util.Base64;
+import android.util.Log;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
@@ -476,8 +477,11 @@ public final class TerminalEmulator {
      * @param length the number of bytes in the array to process
      */
     public void append(byte[] buffer, int length) {
-        for (int i = 0; i < length; i++)
+        for (int i = 0; i < length; i++){
             processByte(buffer[i]);
+            /** This is the terminal emulator accepts input to the display(not user input to the CLI) - PF */
+
+        }
     }
 
     private void processByte(byte byteToProcess) {

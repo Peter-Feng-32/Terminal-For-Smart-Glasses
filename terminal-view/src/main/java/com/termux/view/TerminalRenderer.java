@@ -248,7 +248,7 @@ public final class TerminalRenderer {
             mFontAscentTooz = (int) Math.ceil(mTextPaintTooz.ascent());
             mFontLineSpacingAndAscentTooz = mFontLineSpacingTooz + mFontAscentTooz;
 
-            Log.w("Info1:", String.format("mFontLineSpacingTooz: %d", mFontLineSpacingTooz));
+            //Log.w("Info1:", String.format("mFontLineSpacingTooz: %d", mFontLineSpacingTooz));
 
             textHeight = mFontLineSpacingAndAscentTooz + mFontLineSpacingTooz * mEmulator.mRows;
         }

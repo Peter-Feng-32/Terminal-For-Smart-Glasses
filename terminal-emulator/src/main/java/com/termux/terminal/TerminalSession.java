@@ -6,6 +6,7 @@ import android.os.Message;
 import android.system.ErrnoException;
 import android.system.Os;
 import android.system.OsConstants;
+import android.util.Log;
 
 import java.io.File;
 import java.io.FileDescriptor;
@@ -156,6 +157,8 @@ public final class TerminalSession extends TerminalOutput {
                         int bytesToWrite = mTerminalToProcessIOQueue.read(buffer, true);
                         if (bytesToWrite == -1) return;
                         termOut.write(buffer, 0, bytesToWrite);
+                        for(int i = 0; i < bytesToWrite; i++)
+                        Log.w("TermSessionOutputWriter", String.valueOf(buffer[i]));
                     }
                 } catch (IOException e) {
                     // Ignore.

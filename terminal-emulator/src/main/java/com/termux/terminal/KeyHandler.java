@@ -54,6 +54,9 @@ import static android.view.KeyEvent.KEYCODE_SPACE;
 import static android.view.KeyEvent.KEYCODE_SYSRQ;
 import static android.view.KeyEvent.KEYCODE_TAB;
 
+import android.util.Log;
+
+
 public final class KeyHandler {
 
     public static final int KEYMOD_ALT = 0x80000000;

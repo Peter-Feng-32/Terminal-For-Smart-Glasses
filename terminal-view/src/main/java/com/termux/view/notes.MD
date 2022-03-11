@@ -20,3 +20,4 @@ Scrolling Issue?  Rewrite so we aren't doing renders onDraw?
     Or maybe update when finger-lift and was scrolling?
 
 Thad: Do everything at the terminal emulator level.  Make the optimal decision for each terminal emulator command.
+    -> Investigate how stuff at the terminal level interacts with stuff on the Android Screen level.
