@@ -965,17 +965,41 @@ public final class TerminalView extends View {
              */
 
 
-            Bitmap bitmap = Bitmap.createBitmap(400, 60, Bitmap.Config.ARGB_8888);
+            Bitmap bitmap = Bitmap.createBitmap(400, 640, Bitmap.Config.ARGB_8888);
             Canvas toozCanvas = new Canvas(bitmap);
             toozCanvas.drawColor(Color.BLUE);
+            mRenderer.renderToTooz(mEmulator, toozCanvas, mTopRow, sel[0], sel[1], sel[2], sel[3]);
 
-            mRenderer.renderToTooz(mEmulator, canvas, mTopRow, sel[0], sel[1], sel[2], sel[3]);
+
+
+            Bitmap mySmallBitmap = Bitmap.createBitmap(20, 70, Bitmap.Config.ARGB_8888);
+            Canvas mySmallToozCanvas = new Canvas(mySmallBitmap);
+            mySmallToozCanvas.drawColor(Color.RED);
+            mRenderer.renderToToozExtra(mEmulator, mySmallToozCanvas, mTopRow, sel[0], sel[1], sel[2], sel[3]);
+
+
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out);
             byte[] byteArray = out.toByteArray();
             String s = bytesToHex(byteArray);
             Log.w("Sent", s);
             glassesHelper.sendFrame(s);
+
+
+            ByteArrayOutputStream mySmallOut = new ByteArrayOutputStream();
+            mySmallBitmap.compress(Bitmap.CompressFormat.JPEG, 90, mySmallOut);
+            byte[] mySmallByteArray = mySmallOut.toByteArray();
+            String mySmallS = bytesToHex(mySmallByteArray);
+            Log.w("Small Size", String.valueOf(mySmallBitmap.getWidth()));
+
+            int cellX = (int) mRenderer.getWidthBeforeTooz(mEmulator, mTopRow, 1, 5) - 5;
+            int cellY = (int) mRenderer.getHeightBeforeTooz(mEmulator, mTopRow, 5);
+            Log.w("Cell X", "" + cellX);
+            Log.w("Cell Y", "" + cellY);
+
+            Log.w("SentSmall", mySmallS);
+            //glassesHelper.sendFrame(mySmallS, (int)mRenderer.getWidthBeforeTooz(mEmulator, mTopRow, 1, 1), 0);
+            glassesHelper.sendFrame(mySmallS, cellX, cellY);
 
             // render the text selection handles
             renderTextSelection();

@@ -137,6 +137,40 @@ public class FrameToGlasses {
             }
         }
     }
+
+    public void sendFrame(String imageHexString, int x, int y) {
+        if(!isConnected()) {
+            //searchAndConnect(MY_UUID);
+        } else {
+            int oldX = this.x;
+            int oldY = this.y;
+            setX(x);
+            setY(y);
+            byte[] headerBytes = generateHeader(imageHexString);
+            byte[] frameIDBlockBytes = generateFrameIDBlock();
+            byte[] imageBytes = hexStringToByteArray(imageHexString);
+            byte[] ending = {0x13};
+            byte[] byteStream = ArrayUtils.addAll(headerBytes, frameIDBlockBytes);
+            byteStream = ArrayUtils.addAll(byteStream, imageBytes);
+            byteStream = ArrayUtils.addAll(byteStream, ending);
+            setX(oldX);
+            setY(oldY);
+
+            try {
+                if (connectionOutputStream != null) {
+                    connectionOutputStream.write(byteStream);
+                    Log.w("Sent Data", "Sent sendBuffer successfully");
+                    framesSent++;
+                } else {
+                    Log.w("Connection", "Not connected, can't send data.");
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+        }
+    }
+
     public void configureFrameIDBlock(int x, int y, boolean overlay, boolean important, String format, int timeToLive, int loop){
         setX(x);
         setY(y);
