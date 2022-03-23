@@ -129,6 +129,7 @@ public final class TerminalView extends View {
                  * */
                 //If done scrolling with finger, update the glasses with where the frame ended up.
                 if(scrolledWithFinger) {
+                    Log.w("done scrolling invalidate", "test");
                     invalidateGlassesFull();
                 }
                 scrolledWithFinger = false;
@@ -479,7 +480,7 @@ public final class TerminalView extends View {
         }
 
         mEmulator.clearScrollCounter();
-        Log.w("OnScreenUpdated", "");
+        Log.w("OnScreenUpdated", "Test");
         invalidateGlassesFull();
         if (mAccessibilityEnabled) setContentDescription(getText());
     }
@@ -499,6 +500,7 @@ public final class TerminalView extends View {
     public void setTypeface(Typeface newTypeface) {
         mRenderer = new TerminalRenderer(mRenderer.mTextSize, newTypeface);
         updateSize();
+        Log.w("setTypeFace.invalidate", "test");
         invalidateGlassesFull();
     }
 
@@ -550,6 +552,9 @@ public final class TerminalView extends View {
         mEmulator.sendMouseEvent(button, x, y, pressed);
     }
 
+    /**
+     * Todo: Determine what will happen if an application tries to scroll by spamming KEYCODE_DPAD_UP events.
+     */
     /** Perform a scroll, either from dragging the screen or by scrolling a mouse wheel. */
     void doScroll(MotionEvent event, int rowsDown) {
         boolean up = rowsDown < 0;
@@ -753,6 +758,7 @@ public final class TerminalView extends View {
         }
 
         if (mClient.onKeyDown(keyCode, event, mTermSession)) {
+            Log.w("onKeyDown.invalidate", "test");
             invalidateGlassesFull();
             return true;
         } else if (event.isSystem() && (!mClient.shouldBackButtonBeMappedToEscape() || keyCode != KeyEvent.KEYCODE_BACK)) {
@@ -814,7 +820,9 @@ public final class TerminalView extends View {
             inputCodePoint(result, controlDown, leftAltDown);
         }
 
-        if (mCombiningAccent != oldCombiningAccent) invalidateGlassesFull();
+        if (mCombiningAccent != oldCombiningAccent) {
+            Log.w("mCombiningAccent.invalidate", "test");
+            invalidateGlassesFull();}
 
         return true;
     }
@@ -886,7 +894,7 @@ public final class TerminalView extends View {
         // Ensure cursor is shown when a key is pressed down like long hold on (arrow) keys
         if (mEmulator != null)
             mEmulator.setCursorBlinkState(true);
-
+        Log.w("handlekeyCode", keyCode + "");
         TerminalEmulator term = mTermSession.getEmulator();
         String code = KeyHandler.getCode(keyCode, keyMod, term.isCursorKeysApplicationMode(), term.isKeypadApplicationMode());
         if (code == null) return false;
@@ -911,6 +919,7 @@ public final class TerminalView extends View {
         if (mEmulator == null && keyCode != KeyEvent.KEYCODE_BACK) return true;
 
         if (mClient.onKeyUp(keyCode, event)) {
+            Log.w("onKeyUp.invalidate", "test");
             invalidateGlassesFull();
             return true;
         } else if (event.isSystem()) {
@@ -951,6 +960,7 @@ public final class TerminalView extends View {
 
             mTopRow = 0;
             scrollTo(0, 0);
+            Log.w("updateSize.invalidate", "test");
             invalidateGlassesFull();
         }
     }
@@ -1243,6 +1253,7 @@ public final class TerminalView extends View {
                     mCursorVisible = !mCursorVisible;
                     //mClient.logVerbose(LOG_TAG, "Toggling cursor blink state to " + mCursorVisible);
                     mEmulator.setCursorBlinkState(mCursorVisible);
+                    Log.w("blinker run invalidate", "test");
                     invalidateGlassesFull();
                 }
             } finally {
@@ -1306,13 +1317,14 @@ public final class TerminalView extends View {
 
         showTextSelectionCursors(event);
         mClient.copyModeChanged(isSelectingText());
-
+        Log.w("startTextSelectionModeInvalidate", "test");
         invalidateGlassesFull();
     }
 
     public void stopTextSelectionMode() {
         if (hideTextSelectionCursors()) {
             mClient.copyModeChanged(isSelectingText());
+            Log.w("stopTextSelectionModeInvalidate", "test");
             invalidateGlassesFull();
         }
     }

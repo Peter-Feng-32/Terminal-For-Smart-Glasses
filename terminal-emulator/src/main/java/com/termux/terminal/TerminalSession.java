@@ -344,8 +344,13 @@ public final class TerminalSession extends TerminalOutput {
         @Override
         public void handleMessage(Message msg) {
             int bytesRead = mProcessToTerminalIOQueue.read(mReceiveBuffer, false);
+
             if (bytesRead > 0) {
                 mEmulator.append(mReceiveBuffer, bytesRead);
+                for(int i = 0; i < bytesRead; i++) {
+                    Log.w("handleMessage", "" + mReceiveBuffer[i]);
+
+                }
                 notifyScreenUpdate();
             }
 
