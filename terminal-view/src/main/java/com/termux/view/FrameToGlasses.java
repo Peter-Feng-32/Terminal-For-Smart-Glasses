@@ -114,7 +114,7 @@ public class FrameToGlasses {
 
     public void sendFrame(String imageHexString) {
         if(!isConnected()) {
-            //searchAndConnect(MY_UUID);
+            searchAndConnect(MY_UUID);
         } else {
             byte[] headerBytes = generateHeader(imageHexString);
             byte[] frameIDBlockBytes = generateFrameIDBlock();
@@ -140,7 +140,7 @@ public class FrameToGlasses {
 
     public void sendFrame(String imageHexString, int x, int y) {
         if(!isConnected()) {
-            //searchAndConnect(MY_UUID);
+            searchAndConnect(MY_UUID);
         } else {
             int oldX = this.x;
             int oldY = this.y;

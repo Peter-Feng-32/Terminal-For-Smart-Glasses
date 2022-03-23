@@ -152,7 +152,9 @@ public final class TerminalView extends View {
                     distanceY += mScrollRemainder;
                     int deltaRows = (int) (distanceY / mRenderer.mFontLineSpacing);
                     mScrollRemainder = distanceY - deltaRows * mRenderer.mFontLineSpacing;
+                    Log.w("onScroll", "onScroll calling doScroll " + deltaRows);
                     doScroll(e, deltaRows);
+                    //if(deltaRows != 0) invalidateGlassesFull();
                 }
                 return true;
             }
@@ -197,13 +199,19 @@ public final class TerminalView extends View {
                             mScroller.abortAnimation();
                             return;
                         }
-                        if (mScroller.isFinished()) return;
+                        if (mScroller.isFinished()) {
+                            Log.w("onFling", "done with Fling");
+                            invalidateGlassesFull();
+                            return;
+                        }
                         boolean more = mScroller.computeScrollOffset();
                         int newY = mScroller.getCurrY();
                         int diff = mouseTrackingAtStartOfFling ? (newY - mLastY) : (newY - mTopRow);
+                        Log.w("onFling", "onFling calling doScroll");
                         doScroll(e2, diff);
                         mLastY = newY;
                         if (more) post(this);
+
                     }
                 });
 
@@ -464,8 +472,8 @@ public final class TerminalView extends View {
         }
 
         mEmulator.clearScrollCounter();
-
-        invalidate();
+        Log.w("OnScreenUpdated", "");
+        invalidateGlassesFull();
         if (mAccessibilityEnabled) setContentDescription(getText());
     }
 
@@ -484,7 +492,7 @@ public final class TerminalView extends View {
     public void setTypeface(Typeface newTypeface) {
         mRenderer = new TerminalRenderer(mRenderer.mTextSize, newTypeface);
         updateSize();
-        invalidate();
+        invalidateGlassesFull();
     }
 
     @Override
@@ -541,16 +549,20 @@ public final class TerminalView extends View {
         int amount = Math.abs(rowsDown);
         for (int i = 0; i < amount; i++) {
             if (mEmulator.isMouseTrackingActive()) {
+                Log.w("doScroll Test", "isMouseTrackingActive");
                 sendMouseEventCode(event, up ? TerminalEmulator.MOUSE_WHEELUP_BUTTON : TerminalEmulator.MOUSE_WHEELDOWN_BUTTON, true);
             } else if (mEmulator.isAlternateBufferActive()) {
                 // Send up and down key events for scrolling, which is what some terminals do to make scroll work in
                 // e.g. less, which shifts to the alt screen without mouse handling.
+                Log.w("doScroll", "isAlternateBufferActive");
                 handleKeyCode(up ? KeyEvent.KEYCODE_DPAD_UP : KeyEvent.KEYCODE_DPAD_DOWN, 0);
             } else {
                 mTopRow = Math.min(0, Math.max(-(mEmulator.getScreen().getActiveTranscriptRows()), mTopRow + (up ? -1 : 1)));
                 if (!awakenScrollBars()) invalidate();
             }
         }
+        Log.w("doScroll", "Done with doScroll");
+
     }
 
     /** Overriding {@link View#onGenericMotionEvent(MotionEvent)}. */
@@ -736,7 +748,7 @@ public final class TerminalView extends View {
         }
 
         if (mClient.onKeyDown(keyCode, event, mTermSession)) {
-            invalidate();
+            invalidateGlassesFull();
             return true;
         } else if (event.isSystem() && (!mClient.shouldBackButtonBeMappedToEscape() || keyCode != KeyEvent.KEYCODE_BACK)) {
             return super.onKeyDown(keyCode, event);
@@ -797,7 +809,7 @@ public final class TerminalView extends View {
             inputCodePoint(result, controlDown, leftAltDown);
         }
 
-        if (mCombiningAccent != oldCombiningAccent) invalidate();
+        if (mCombiningAccent != oldCombiningAccent) invalidateGlassesFull();
 
         return true;
     }
@@ -894,7 +906,7 @@ public final class TerminalView extends View {
         if (mEmulator == null && keyCode != KeyEvent.KEYCODE_BACK) return true;
 
         if (mClient.onKeyUp(keyCode, event)) {
-            invalidate();
+            invalidateGlassesFull();
             return true;
         } else if (event.isSystem()) {
             // Let system key events through.
@@ -934,7 +946,7 @@ public final class TerminalView extends View {
 
             mTopRow = 0;
             scrollTo(0, 0);
-            invalidate();
+            invalidateGlassesFull();
         }
     }
     private static final char[] HEX_ARRAY = "0123456789abcdef".toCharArray();
@@ -957,54 +969,63 @@ public final class TerminalView extends View {
             if (mTextSelectionCursorController != null) {
                 mTextSelectionCursorController.getSelectors(sel);
             }
-
+            //Log.w("OnDraw", "Drawing");
             mRenderer.render(mEmulator, canvas, mTopRow, sel[0], sel[1], sel[2], sel[3]);
-
-            /*
-            todo: implement delta updates for rendering to smart-glasses
-             */
-
-
-            Bitmap bitmap = Bitmap.createBitmap(400, 640, Bitmap.Config.ARGB_8888);
-            Canvas toozCanvas = new Canvas(bitmap);
-            toozCanvas.drawColor(Color.BLUE);
-            mRenderer.renderToTooz(mEmulator, toozCanvas, mTopRow, sel[0], sel[1], sel[2], sel[3]);
-
-
-
-            Bitmap mySmallBitmap = Bitmap.createBitmap(20, 70, Bitmap.Config.ARGB_8888);
-            Canvas mySmallToozCanvas = new Canvas(mySmallBitmap);
-            mySmallToozCanvas.drawColor(Color.RED);
-            mRenderer.renderToToozExtra(mEmulator, mySmallToozCanvas, mTopRow, sel[0], sel[1], sel[2], sel[3]);
-
-
-            ByteArrayOutputStream out = new ByteArrayOutputStream();
-            bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out);
-            byte[] byteArray = out.toByteArray();
-            String s = bytesToHex(byteArray);
-            Log.w("Sent", s);
-            glassesHelper.sendFrame(s);
-
-
-            ByteArrayOutputStream mySmallOut = new ByteArrayOutputStream();
-            mySmallBitmap.compress(Bitmap.CompressFormat.JPEG, 90, mySmallOut);
-            byte[] mySmallByteArray = mySmallOut.toByteArray();
-            String mySmallS = bytesToHex(mySmallByteArray);
-            Log.w("Small Size", String.valueOf(mySmallBitmap.getWidth()));
-
-            int cellX = (int) mRenderer.getWidthBeforeTooz(mEmulator, mTopRow, 1, 5) - 5;
-            int cellY = (int) mRenderer.getHeightBeforeTooz(mEmulator, mTopRow, 5);
-            Log.w("Cell X", "" + cellX);
-            Log.w("Cell Y", "" + cellY);
-
-            Log.w("SentSmall", mySmallS);
-            //glassesHelper.sendFrame(mySmallS, (int)mRenderer.getWidthBeforeTooz(mEmulator, mTopRow, 1, 1), 0);
-            glassesHelper.sendFrame(mySmallS, cellX, cellY);
 
             // render the text selection handles
             renderTextSelection();
         }
     }
+
+    public void invalidateGlassesFull() {
+        // render the terminal view and highlight any selected text
+        int[] sel = mDefaultSelectors;
+        if (mTextSelectionCursorController != null) {
+            mTextSelectionCursorController.getSelectors(sel);
+        }
+        //Render full bitmap
+        Bitmap bitmap = Bitmap.createBitmap(400, 640, Bitmap.Config.ARGB_8888);
+        Canvas toozCanvas = new Canvas(bitmap);
+        toozCanvas.drawColor(Color.BLUE);
+        mRenderer.renderToTooz(mEmulator, toozCanvas, mTopRow, sel[0], sel[1], sel[2], sel[3]);
+        //Send full bitmap to tooz
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out);
+        byte[] byteArray = out.toByteArray();
+        String s = bytesToHex(byteArray);
+        Log.w("Sent", s);
+        glassesHelper.sendFrame(s);
+        //Call onDraw
+        invalidate();
+
+    }
+
+    public void invalidateGlassesDelta(int row, int col){
+        // render the terminal view and highlight any selected text
+        int[] sel = mDefaultSelectors;
+        if (mTextSelectionCursorController != null) {
+            mTextSelectionCursorController.getSelectors(sel);
+        }
+        //Render delta update bitmap
+        Bitmap mySmallBitmap = Bitmap.createBitmap(20, 70, Bitmap.Config.ARGB_8888);
+        Canvas mySmallToozCanvas = new Canvas(mySmallBitmap);
+        mySmallToozCanvas.drawColor(Color.RED);
+        mRenderer.renderToToozExtra(mEmulator, mySmallToozCanvas, mTopRow, sel[0], sel[1], sel[2], sel[3]);
+        //Send delta update bitmap to Tooz
+        ByteArrayOutputStream mySmallOut = new ByteArrayOutputStream();
+        mySmallBitmap.compress(Bitmap.CompressFormat.JPEG, 90, mySmallOut);
+        byte[] mySmallByteArray = mySmallOut.toByteArray();
+        String mySmallS = bytesToHex(mySmallByteArray);
+        Log.w("Small Size", String.valueOf(mySmallBitmap.getWidth()));
+        int cellX = (int) mRenderer.getWidthBeforeTooz(mEmulator, mTopRow, 1, 5) - 5;
+        int cellY = (int) mRenderer.getHeightBeforeTooz(mEmulator, mTopRow, 5);
+        Log.w("Cell X", "" + cellX);
+        Log.w("Cell Y", "" + cellY);
+        glassesHelper.sendFrame(mySmallS, cellX, cellY);
+        //Call onDraw
+        invalidate();
+    }
+
 
     public TerminalSession getCurrentSession() {
         return mTermSession;
@@ -1217,7 +1238,7 @@ public final class TerminalView extends View {
                     mCursorVisible = !mCursorVisible;
                     //mClient.logVerbose(LOG_TAG, "Toggling cursor blink state to " + mCursorVisible);
                     mEmulator.setCursorBlinkState(mCursorVisible);
-                    invalidate();
+                    invalidateGlassesFull();
                 }
             } finally {
                 // Recall the Runnable after mBlinkRate milliseconds to toggle the blink state
@@ -1281,13 +1302,13 @@ public final class TerminalView extends View {
         showTextSelectionCursors(event);
         mClient.copyModeChanged(isSelectingText());
 
-        invalidate();
+        invalidateGlassesFull();
     }
 
     public void stopTextSelectionMode() {
         if (hideTextSelectionCursors()) {
             mClient.copyModeChanged(isSelectingText());
-            invalidate();
+            invalidateGlassesFull();
         }
     }
 
@@ -1360,5 +1381,7 @@ public final class TerminalView extends View {
             }
         }
     }
+
+
 
 }

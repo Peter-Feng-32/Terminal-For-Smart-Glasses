@@ -4,6 +4,7 @@ import android.content.ClipboardManager;
 import android.content.Context;
 import android.graphics.Rect;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.ActionMode;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -82,6 +83,7 @@ public class TextSelectionCursorController implements CursorController {
         mEndHandle.positionAtCursor(mSelX2 + 1, mSelY2, false);
 
         if (mActionMode != null) {
+            Log.w("mActionMode.invalidate()", " ");
             mActionMode.invalidate();
         }
     }
@@ -284,7 +286,7 @@ public class TextSelectionCursorController implements CursorController {
 
             mSelX2 = getValidCurX(screen, mSelY2, mSelX2);
         }
-
+        Log.w("TextSelectionCursorControllerInvalidateUpdatePosition", "");
         terminalView.invalidate();
     }
 

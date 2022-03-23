@@ -5,6 +5,7 @@ import android.graphics.Canvas;
 import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
 import android.os.SystemClock;
+import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
@@ -102,6 +103,7 @@ public class TextSelectionHandleView extends View {
         mHandleWidth = handleWidth;
         mTouchOffsetY = -mHandleHeight * 0.3f;
         mHotspotY = 0;
+        Log.w("SetOrientation.invalidate()", "");
         invalidate();
     }
 
@@ -116,6 +118,7 @@ public class TextSelectionHandleView extends View {
         removeFromParent();
 
         initHandle(); // init the handle
+        Log.w("TextSelectionHandleViewInvalidate", "");
         invalidate(); // invalidate to make sure onDraw is called
 
         final int[] coords = mTempCoords;
@@ -137,6 +140,7 @@ public class TextSelectionHandleView extends View {
             removeFromParent();
             mHandle = null;  // garbage collect the handle
         }
+        Log.w("hide.Invalidate()", "");
         invalidate();
     }
 
