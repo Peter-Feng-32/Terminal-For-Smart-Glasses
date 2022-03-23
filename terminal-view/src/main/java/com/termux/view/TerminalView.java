@@ -111,6 +111,7 @@ public final class TerminalView extends View {
 
             boolean scrolledWithFinger;
 
+
             @Override
             public boolean onUp(MotionEvent event) {
                 mScrollRemainder = 0.0f;
@@ -120,6 +121,15 @@ public final class TerminalView extends View {
                     sendMouseEventCode(event, TerminalEmulator.MOUSE_LEFT_BUTTON, true);
                     sendMouseEventCode(event, TerminalEmulator.MOUSE_LEFT_BUTTON, false);
                     return true;
+                }
+
+                /** Todo: IMPORTANT POSSIBLE IDEA.  DURING THE SCROLLING, SEND DELTA UPDATES TO THE GLASSES FOR # OF LINES CURRENTLY OFFSET FROM WHERE IS BEING SCROLLED.
+                 * This way, we mitigate not being able to see each individual update as the scroll happens line by line, which would be too many frames for fast+long scrolls.
+                 * And we allow users to not have to look down while scrolling.
+                 * */
+                //If done scrolling with finger, update the glasses with where the frame ended up.
+                if(scrolledWithFinger) {
+                    invalidateGlassesFull();
                 }
                 scrolledWithFinger = false;
                 return false;
@@ -152,9 +162,7 @@ public final class TerminalView extends View {
                     distanceY += mScrollRemainder;
                     int deltaRows = (int) (distanceY / mRenderer.mFontLineSpacing);
                     mScrollRemainder = distanceY - deltaRows * mRenderer.mFontLineSpacing;
-                    Log.w("onScroll", "onScroll calling doScroll " + deltaRows);
                     doScroll(e, deltaRows);
-                    //if(deltaRows != 0) invalidateGlassesFull();
                 }
                 return true;
             }
@@ -207,7 +215,6 @@ public final class TerminalView extends View {
                         boolean more = mScroller.computeScrollOffset();
                         int newY = mScroller.getCurrY();
                         int diff = mouseTrackingAtStartOfFling ? (newY - mLastY) : (newY - mTopRow);
-                        Log.w("onFling", "onFling calling doScroll");
                         doScroll(e2, diff);
                         mLastY = newY;
                         if (more) post(this);
@@ -561,8 +568,6 @@ public final class TerminalView extends View {
                 if (!awakenScrollBars()) invalidate();
             }
         }
-        Log.w("doScroll", "Done with doScroll");
-
     }
 
     /** Overriding {@link View#onGenericMotionEvent(MotionEvent)}. */
