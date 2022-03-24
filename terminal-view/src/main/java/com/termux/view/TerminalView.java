@@ -1080,7 +1080,7 @@ public final class TerminalView extends View {
         Log.w("Small Size", String.valueOf(mySmallBitmap.getWidth()));
         Log.w("Col", ""+col);
         Log.w("Row", "" + row);
-        int cellX = (int) mRenderer.getWidthBeforeTooz(mEmulator, mTopRow, col, row) - 5;
+        int cellX = (int) mRenderer.getWidthBeforeTooz(mEmulator, mTopRow, col, row);
         int cellY = (int) mRenderer.getHeightBeforeTooz(mEmulator, mTopRow, row);
         Log.w("Cell X", "" + cellX);
         Log.w("Cell Y", "" + cellY);
