@@ -515,8 +515,9 @@ public final class TerminalView extends View {
         Log.w("OnScreenUpdated", "Changes");
 
         if(!changes.overrideChangeScreen && changes.codePointsEmitted == 1 && changes.newLine == 0) {
-            invalidateGlassesDelta(changes.cursorCurrRow, changes.cursorCurrCol);
-            invalidateGlassesDelta(changes.cursorPrevRow, changes.cursorPrevCol);
+            invalidateGlassesDelta(changes.cursorPrevRow, changes.cursorPrevCol, 0);
+
+            invalidateGlassesDelta(changes.cursorCurrRow, changes.cursorCurrCol, 1);
         } else {
             invalidateGlassesFull();
         }
@@ -1055,23 +1056,27 @@ public final class TerminalView extends View {
 
     }
 
-    public void invalidateGlassesDelta(int row, int col){
+    public void invalidateGlassesDelta(int row, int col, int cursor){
         // render the terminal view and highlight any selected text
         int[] sel = mDefaultSelectors;
         if (mTextSelectionCursorController != null) {
             mTextSelectionCursorController.getSelectors(sel);
         }
         //Render delta update bitmap
-        Bitmap mySmallBitmap = Bitmap.createBitmap(20, 70, Bitmap.Config.ARGB_8888);
+        Bitmap mySmallBitmap = Bitmap.createBitmap(19, 59, Bitmap.Config.ARGB_8888);
         Canvas mySmallToozCanvas = new Canvas(mySmallBitmap);
         mySmallToozCanvas.drawColor(Color.RED);
+        if(cursor != 0){
+            mySmallToozCanvas.drawColor(Color.WHITE);
+        }
+
 
         char charToRender = mEmulator.getScreen().getmLines()[mEmulator.getScreen().getActiveTranscriptRows() + row].getmText()[col];
         Log.w("mTopRow", ""+mTopRow + " active rows " +
             +mEmulator.getScreen().getActiveRows() + " active transcript rows " + mEmulator.getScreen().getActiveTranscriptRows());
 
 
-        mRenderer.renderToToozExtra(mEmulator, mySmallToozCanvas, mTopRow, sel[0], sel[1], sel[2], sel[3], charToRender);
+        mRenderer.renderToToozExtra(mEmulator, mySmallToozCanvas, mTopRow, sel[0], sel[1], sel[2], sel[3], charToRender, cursor);
         //Send delta update bitmap to Tooz
         ByteArrayOutputStream mySmallOut = new ByteArrayOutputStream();
         mySmallBitmap.compress(Bitmap.CompressFormat.JPEG, 90, mySmallOut);
@@ -1084,7 +1089,8 @@ public final class TerminalView extends View {
         int cellY = (int) mRenderer.getHeightBeforeTooz(mEmulator, mTopRow, row);
         Log.w("Cell X", "" + cellX);
         Log.w("Cell Y", "" + cellY);
-        glassesHelper.sendFrame(mySmallS, cellX, cellY);
+        Log.w("Bitmap Size", "X: " + mySmallBitmap.getWidth() + " Y: " + mySmallBitmap.getHeight());
+        glassesHelper.sendFrame(mySmallS, cellX + TerminalRenderer.leftOffsetTooz-3, cellY);
         //Call onDraw
         invalidate();
     }

@@ -47,7 +47,7 @@ public final class TerminalRenderer {
     int mFontLineSpacingTooz;
     private int mFontAscentTooz;
     int mFontLineSpacingAndAscentTooz;
-    final int leftOffsetTooz = 20;
+    public static final int leftOffsetTooz = 20;
     //Tooz is 640 x 400.  Portrait mode.
     final int MAXWIDTHTOOZ = 360;
     final int MAXHEIGHTTOOZ = 600 + 50;
@@ -367,7 +367,7 @@ public final class TerminalRenderer {
     /** Render the terminal to a canvas with at a specified row scroll, and an optional rectangular selection. */
     /** TODO: Tooz */
     public final void renderToToozExtra(TerminalEmulator mEmulator, Canvas canvas, int topRow,
-                                   int selectionY1, int selectionY2, int selectionX1, int selectionX2, char c) {
+                                   int selectionY1, int selectionY2, int selectionX1, int selectionX2, char c, int cursor) {
         final boolean reverseVideo = mEmulator.isReverseVideo();
         final int endRow = topRow + mEmulator.mRows;
         final int columns = mEmulator.mColumns;
@@ -467,9 +467,9 @@ public final class TerminalRenderer {
                         //Log.w("TEST", column + "");
                         final int columnWidthSinceLastRun = column - lastRunStartColumn;
                         final int charsSinceLastRun = currentCharIndex - lastRunStartIndex;
-                        int cursorColor = lastRunInsideCursor ? mEmulator.mColors.mCurrentColors[TextStyle.COLOR_INDEX_CURSOR] : 0;
+                        int cursorColor = (cursor != 0) ? mEmulator.mColors.mCurrentColors[TextStyle.COLOR_INDEX_CURSOR] : 0;
                         boolean invertCursorTextColor = false;
-                        if (lastRunInsideCursor && cursorShape == TerminalEmulator.TERMINAL_CURSOR_STYLE_BLOCK) {
+                        if ((cursor != 0) && cursorShape == TerminalEmulator.TERMINAL_CURSOR_STYLE_BLOCK) {
                             invertCursorTextColor = true;
                         }
                         if(row == topRow && column == 1) {
@@ -557,7 +557,7 @@ public final class TerminalRenderer {
                     // instead of e.g. being considered inside the cursor in the next run.
                     currentCharIndex += Character.isHighSurrogate(line[currentCharIndex]) ? 2 : 1;
                 }
-                Log.w("GetWidthBefore", "measuredWidthForRun: " + measuredWidthForRun + " " + "column: " + column);
+                //Log.w("GetWidthBefore", "measuredWidthForRun: " + measuredWidthForRun + " " + "column: " + column);
             }
 
             if(row == topRow + currTopRowOffset) return measuredWidthForRun;
@@ -567,10 +567,7 @@ public final class TerminalRenderer {
     }
 
     public float getHeightBeforeTooz(TerminalEmulator mEmulator, int topRow, int currRow) {
-
-        final int endRow = topRow + mEmulator.mRows;
         final int columns = mEmulator.mColumns;
-        final TerminalBuffer screen = mEmulator.getScreen();
 
 
         char[] spacesArray = new char[columns];
@@ -629,6 +626,8 @@ public final class TerminalRenderer {
         final boolean strikeThrough = (effect & TextStyle.CHARACTER_ATTRIBUTE_STRIKETHROUGH) != 0;
         final boolean dim = (effect & TextStyle.CHARACTER_ATTRIBUTE_DIM) != 0;
 
+        Log.w("Cursor", cursor + " " + cursorStyle);
+
         if ((foreColor & 0xff000000) != 0xff000000) {
             // Let bold have bright colors if applicable (one of the first 8):
             if (bold && foreColor >= 0 && foreColor < 8) foreColor += 8;
@@ -665,7 +664,7 @@ public final class TerminalRenderer {
         if (backColor != palette[TextStyle.COLOR_INDEX_BACKGROUND]) {
             // Only draw non-default background.
             mTextPaintTooz.setColor(backColor);
-            canvas.drawRect(left, y - mFontLineSpacingAndAscentTooz + mFontAscentTooz, right, y, mTextPaintTooz);
+            //canvas.drawRect(left, y - mFontLineSpacingAndAscentTooz, right, y, mTextPaintTooz);
         }
 
         if (cursor != 0) {
@@ -673,7 +672,8 @@ public final class TerminalRenderer {
             float cursorHeight = mFontLineSpacingAndAscentTooz - mFontAscentTooz;
             if (cursorStyle == TerminalEmulator.TERMINAL_CURSOR_STYLE_UNDERLINE) cursorHeight /= 4.;
             else if (cursorStyle == TerminalEmulator.TERMINAL_CURSOR_STYLE_BAR) right -= ((right - left) * 3) / 4.;
-            canvas.drawRect(left, y - cursorHeight, right, y, mTextPaintTooz);
+            Log.w("Drawing Cursor", "Test");
+            //canvas.drawRect(0, 0, right, y, mTextPaintTooz);
         }
 
         if ((effect & TextStyle.CHARACTER_ATTRIBUTE_INVISIBLE) == 0) {
@@ -716,6 +716,7 @@ public final class TerminalRenderer {
         final boolean italic = (effect & TextStyle.CHARACTER_ATTRIBUTE_ITALIC) != 0;
         final boolean strikeThrough = (effect & TextStyle.CHARACTER_ATTRIBUTE_STRIKETHROUGH) != 0;
         final boolean dim = (effect & TextStyle.CHARACTER_ATTRIBUTE_DIM) != 0;
+
 
         if ((foreColor & 0xff000000) != 0xff000000) {
             // Let bold have bright colors if applicable (one of the first 8):
@@ -801,6 +802,8 @@ public final class TerminalRenderer {
         final boolean italic = (effect & TextStyle.CHARACTER_ATTRIBUTE_ITALIC) != 0;
         final boolean strikeThrough = (effect & TextStyle.CHARACTER_ATTRIBUTE_STRIKETHROUGH) != 0;
         final boolean dim = (effect & TextStyle.CHARACTER_ATTRIBUTE_DIM) != 0;
+
+
 
         if ((foreColor & 0xff000000) != 0xff000000) {
             // Let bold have bright colors if applicable (one of the first 8):

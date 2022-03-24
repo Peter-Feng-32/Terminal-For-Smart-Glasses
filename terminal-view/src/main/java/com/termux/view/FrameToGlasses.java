@@ -147,8 +147,10 @@ public class FrameToGlasses {
         } else {
             int oldX = this.x;
             int oldY = this.y;
+            boolean oldOverlay = this.overlay;
             setX(x);
             setY(y);
+            setOverlay(true);
             byte[] headerBytes = generateHeader(imageHexString);
             byte[] frameIDBlockBytes = generateFrameIDBlock();
             byte[] imageBytes = hexStringToByteArray(imageHexString);
@@ -158,6 +160,7 @@ public class FrameToGlasses {
             byteStream = ArrayUtils.addAll(byteStream, ending);
             setX(oldX);
             setY(oldY);
+            setOverlay(oldOverlay);
 
             try {
                 if (connectionOutputStream != null) {
