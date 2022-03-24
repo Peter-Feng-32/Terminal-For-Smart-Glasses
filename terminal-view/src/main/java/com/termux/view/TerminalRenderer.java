@@ -664,7 +664,7 @@ public final class TerminalRenderer {
         if (backColor != palette[TextStyle.COLOR_INDEX_BACKGROUND]) {
             // Only draw non-default background.
             mTextPaintTooz.setColor(backColor);
-            //canvas.drawRect(left, y - mFontLineSpacingAndAscentTooz, right, y, mTextPaintTooz);
+            canvas.drawRect(left, y - mFontLineSpacingAndAscentTooz, right, y, mTextPaintTooz);
         }
 
         if (cursor != 0) {
@@ -673,7 +673,7 @@ public final class TerminalRenderer {
             if (cursorStyle == TerminalEmulator.TERMINAL_CURSOR_STYLE_UNDERLINE) cursorHeight /= 4.;
             else if (cursorStyle == TerminalEmulator.TERMINAL_CURSOR_STYLE_BAR) right -= ((right - left) * 3) / 4.;
             Log.w("Drawing Cursor", "Test");
-            //canvas.drawRect(0, 0, right, y, mTextPaintTooz);
+            canvas.drawRect(0, 0, right, y, mTextPaintTooz);
         }
 
         if ((effect & TextStyle.CHARACTER_ATTRIBUTE_INVISIBLE) == 0) {
