@@ -228,6 +228,10 @@ public final class TerminalSession extends TerminalOutput {
         mClient.onTextChanged(this);
     }
 
+    protected void notifyScreenUpdate(TerminalEmulatorChangeRecorder changes) {
+        mClient.onTextChangedRecorded(this, changes);
+    }
+
     /** Reset state for terminal emulator state. */
     public void reset() {
         mEmulator.reset();
@@ -345,13 +349,15 @@ public final class TerminalSession extends TerminalOutput {
         public void handleMessage(Message msg) {
             int bytesRead = mProcessToTerminalIOQueue.read(mReceiveBuffer, false);
 
-            if (bytesRead > 0) {
-                mEmulator.append(mReceiveBuffer, bytesRead);
-                for(int i = 0; i < bytesRead; i++) {
-                    Log.w("handleMessage", "" + mReceiveBuffer[i]);
+            TerminalEmulatorChangeRecorder changes = new TerminalEmulatorChangeRecorder();
 
-                }
-                notifyScreenUpdate();
+            if (bytesRead > 0) {
+                mEmulator.append(mReceiveBuffer, bytesRead, changes);
+                Log.w("Changes", "override: " + changes.overrideChangeScreen + " " + changes.details);
+                Log.w("Changes", "Num code points emitted: " + changes.codePointsEmitted);
+                Log.w("Changes", "Cursor start position: Column: " + changes.cursorPrevCol + " Row: " + changes.cursorPrevRow);
+                Log.w("Changes", "Cursor end position: Column: " + changes.cursorCurrCol + " Row: " + changes.cursorCurrRow);
+                notifyScreenUpdate(changes);
             }
 
             if (msg.what == MSG_PROCESS_EXITED) {

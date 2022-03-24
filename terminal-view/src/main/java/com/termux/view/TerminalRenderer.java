@@ -367,7 +367,7 @@ public final class TerminalRenderer {
     /** Render the terminal to a canvas with at a specified row scroll, and an optional rectangular selection. */
     /** TODO: Tooz */
     public final void renderToToozExtra(TerminalEmulator mEmulator, Canvas canvas, int topRow,
-                                   int selectionY1, int selectionY2, int selectionX1, int selectionX2) {
+                                   int selectionY1, int selectionY2, int selectionX1, int selectionX2, char c) {
         final boolean reverseVideo = mEmulator.isReverseVideo();
         final int endRow = topRow + mEmulator.mRows;
         final int columns = mEmulator.mColumns;
@@ -475,7 +475,7 @@ public final class TerminalRenderer {
                         if(row == topRow && column == 1) {
                             Log.w("Drawing small", "Column: " + column + " columnWidthSinceLastRun: " + columnWidthSinceLastRun);
 
-                            drawTextRunToozExtra(canvas, new char[]{'c'}, palette, heightOffset, lastRunStartColumn, columnWidthSinceLastRun,
+                            drawTextRunToozExtra(canvas, new char[]{c}, palette, heightOffset, lastRunStartColumn, columnWidthSinceLastRun,
                                 lastRunStartIndex, charsSinceLastRun, measuredWidthForRun, cursorColor, cursorShape, lastRunStyle, reverseVideo || invertCursorTextColor || lastRunInsideSelection);
                         }
 
@@ -541,8 +541,12 @@ public final class TerminalRenderer {
                 // This could happen for some fonts which are not truly monospace, or for more exotic characters such as
                 // smileys which android font renders as wide.
                 // If this is detected, we draw this code point scaled to match what wcwidth() expects.
+
+                /*
                 final float measuredCodePointWidth = (codePoint < asciiMeasures.length) ? asciiMeasures[codePoint] : mTextPaintTooz.measureText(line,
                     currentCharIndex, charsForCodePoint);
+                */
+                final float measuredCodePointWidth = mTextPaintTooz.measureText("c", 0, 1);
 
                 final boolean fontWidthMismatch = Math.abs(measuredCodePointWidth / mFontWidthTooz - codePointWcWidth) > 0.01;
                 measuredWidthForRun += measuredCodePointWidth;
@@ -553,6 +557,7 @@ public final class TerminalRenderer {
                     // instead of e.g. being considered inside the cursor in the next run.
                     currentCharIndex += Character.isHighSurrogate(line[currentCharIndex]) ? 2 : 1;
                 }
+                Log.w("GetWidthBefore", "measuredWidthForRun: " + measuredWidthForRun + " " + "column: " + column);
             }
 
             if(row == topRow + currTopRowOffset) return measuredWidthForRun;

@@ -26,6 +26,7 @@ import com.termux.shared.termux.settings.properties.TermuxPropertyConstants;
 import com.termux.shared.termux.terminal.io.BellHandler;
 import com.termux.shared.logger.Logger;
 import com.termux.terminal.TerminalColors;
+import com.termux.terminal.TerminalEmulatorChangeRecorder;
 import com.termux.terminal.TerminalSession;
 import com.termux.terminal.TextStyle;
 
@@ -115,6 +116,12 @@ public class TermuxTerminalSessionClient extends TermuxTerminalSessionClientBase
         if (!mActivity.isVisible()) return;
 
         if (mActivity.getCurrentSession() == changedSession) mActivity.getTerminalView().onScreenUpdated();
+    }
+
+    public void onTextChangedRecorded(@NonNull TerminalSession changedSession, TerminalEmulatorChangeRecorder changes) {
+        if (!mActivity.isVisible()) return;
+
+        if (mActivity.getCurrentSession() == changedSession) mActivity.getTerminalView().onScreenUpdated(changes);
     }
 
     @Override

@@ -4,6 +4,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.termux.shared.logger.Logger;
+import com.termux.terminal.TerminalEmulatorChangeRecorder;
 import com.termux.terminal.TerminalSession;
 import com.termux.terminal.TerminalSessionClient;
 
@@ -15,6 +16,11 @@ public class TermuxTerminalSessionClientBase implements TerminalSessionClient {
     @Override
     public void onTextChanged(@NonNull TerminalSession changedSession) {
     }
+
+    @Override
+    public void onTextChangedRecorded(@NonNull TerminalSession changedSession, TerminalEmulatorChangeRecorder changes) {
+    }
+
 
     @Override
     public void onTitleChanged(@NonNull TerminalSession updatedSession) {

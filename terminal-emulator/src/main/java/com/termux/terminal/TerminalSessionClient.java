@@ -12,6 +12,9 @@ public interface TerminalSessionClient {
 
     void onTextChanged(@NonNull TerminalSession changedSession);
 
+    void onTextChangedRecorded(@NonNull TerminalSession changedSession, TerminalEmulatorChangeRecorder changes);
+
+
     void onTitleChanged(@NonNull TerminalSession changedSession);
 
     void onSessionFinished(@NonNull TerminalSession finishedSession);

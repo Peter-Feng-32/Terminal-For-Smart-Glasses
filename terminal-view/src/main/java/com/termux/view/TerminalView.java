@@ -37,17 +37,11 @@ import androidx.annotation.RequiresApi;
 
 import com.termux.terminal.KeyHandler;
 import com.termux.terminal.TerminalEmulator;
-import com.termux.terminal.TerminalRow;
+import com.termux.terminal.TerminalEmulatorChangeRecorder;
 import com.termux.terminal.TerminalSession;
 import com.termux.view.textselection.TextSelectionCursorController;
 
 import org.apache.commons.io.output.ByteArrayOutputStream;
-
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
 
 /** View displaying and interacting with a {@link TerminalSession}. */
 public final class TerminalView extends View {
@@ -482,6 +476,52 @@ public final class TerminalView extends View {
         mEmulator.clearScrollCounter();
         Log.w("OnScreenUpdated", "Test");
         invalidateGlassesFull();
+        if (mAccessibilityEnabled) setContentDescription(getText());
+    }
+
+    public void onScreenUpdated(TerminalEmulatorChangeRecorder changes) {
+        if (mEmulator == null) return;
+
+        int rowsInHistory = mEmulator.getScreen().getActiveTranscriptRows();
+        if (mTopRow < -rowsInHistory) mTopRow = -rowsInHistory;
+
+        boolean skipScrolling = false;
+        if (isSelectingText()) {
+            // Do not scroll when selecting text.
+            int rowShift = mEmulator.getScrollCounter();
+            if (-mTopRow + rowShift > rowsInHistory) {
+                // .. unless we're hitting the end of history transcript, in which
+                // case we abort text selection and scroll to end.
+                stopTextSelectionMode();
+            } else {
+                skipScrolling = true;
+                mTopRow -= rowShift;
+                decrementYTextSelectionCursors(rowShift);
+            }
+        }
+
+        if (!skipScrolling && mTopRow != 0) {
+            // Scroll down if not already there.
+            if (mTopRow < -3) {
+                // Awaken scroll bars only if scrolling a noticeable amount
+                // - we do not want visible scroll bars during normal typing
+                // of one row at a time.
+                awakenScrollBars();
+            }
+            mTopRow = 0;
+        }
+
+        mEmulator.clearScrollCounter();
+        Log.w("OnScreenUpdated", "Changes");
+
+        if(!changes.overrideChangeScreen && changes.codePointsEmitted == 1 && changes.newLine == 0) {
+            invalidateGlassesDelta(changes.cursorCurrRow, changes.cursorCurrCol);
+            invalidateGlassesDelta(changes.cursorPrevRow, changes.cursorPrevCol);
+        } else {
+            invalidateGlassesFull();
+        }
+
+
         if (mAccessibilityEnabled) setContentDescription(getText());
     }
 
@@ -1025,15 +1065,23 @@ public final class TerminalView extends View {
         Bitmap mySmallBitmap = Bitmap.createBitmap(20, 70, Bitmap.Config.ARGB_8888);
         Canvas mySmallToozCanvas = new Canvas(mySmallBitmap);
         mySmallToozCanvas.drawColor(Color.RED);
-        mRenderer.renderToToozExtra(mEmulator, mySmallToozCanvas, mTopRow, sel[0], sel[1], sel[2], sel[3]);
+
+        char charToRender = mEmulator.getScreen().getmLines()[mEmulator.getScreen().getActiveTranscriptRows() + row].getmText()[col];
+        Log.w("mTopRow", ""+mTopRow + " active rows " +
+            +mEmulator.getScreen().getActiveRows() + " active transcript rows " + mEmulator.getScreen().getActiveTranscriptRows());
+
+
+        mRenderer.renderToToozExtra(mEmulator, mySmallToozCanvas, mTopRow, sel[0], sel[1], sel[2], sel[3], charToRender);
         //Send delta update bitmap to Tooz
         ByteArrayOutputStream mySmallOut = new ByteArrayOutputStream();
         mySmallBitmap.compress(Bitmap.CompressFormat.JPEG, 90, mySmallOut);
         byte[] mySmallByteArray = mySmallOut.toByteArray();
         String mySmallS = bytesToHex(mySmallByteArray);
         Log.w("Small Size", String.valueOf(mySmallBitmap.getWidth()));
-        int cellX = (int) mRenderer.getWidthBeforeTooz(mEmulator, mTopRow, 1, 5) - 5;
-        int cellY = (int) mRenderer.getHeightBeforeTooz(mEmulator, mTopRow, 5);
+        Log.w("Col", ""+col);
+        Log.w("Row", "" + row);
+        int cellX = (int) mRenderer.getWidthBeforeTooz(mEmulator, mTopRow, col, row) - 5;
+        int cellY = (int) mRenderer.getHeightBeforeTooz(mEmulator, mTopRow, row);
         Log.w("Cell X", "" + cellX);
         Log.w("Cell Y", "" + cellY);
         glassesHelper.sendFrame(mySmallS, cellX, cellY);
