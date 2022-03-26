@@ -139,6 +139,8 @@ public final class TerminalSession extends TerminalOutput {
                     while (true) {
                         int read = termIn.read(buffer);
                         if (read == -1) return;
+                        for(int i = 0; i < read; i++)
+                            Log.w("TermSessionInputReader", String.valueOf(buffer[i]));
                         if (!mProcessToTerminalIOQueue.write(buffer, 0, read)) return;
                         mMainThreadHandler.sendEmptyMessage(MSG_NEW_INPUT);
                     }

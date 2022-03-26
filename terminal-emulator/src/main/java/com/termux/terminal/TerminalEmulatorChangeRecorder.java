@@ -8,6 +8,7 @@ import java.util.ArrayList;
 public class TerminalEmulatorChangeRecorder {
     public int codePointsEmitted = 0;
     public boolean screenCleared = false;
+    public boolean possibleDontUpdate = false;
     public int newLine = 0;
     public int backSpaceCount = 0;
     public int cursorPrevRow;

@@ -963,6 +963,15 @@ public final class TerminalEmulator {
     }
 
     public void processCodePoint(int b, TerminalEmulatorChangeRecorder changes) {
+
+
+        /** TODO: Add more optimizations for escape sequences as we extend the functionality.  For now, just update the entire screen when an escape sequence happens.*/
+
+        if(mEscapeState != ESC_NONE && mEscapeState != ESC && !(mEscapeState == ESC_CSI && b == 'K')) {
+            changes.details = "Override change screen because escape sequence";
+            changes.overrideChangeScreen = true;
+        }
+
         switch (b) {
             case 0: // Null character (NUL, ^@). Do nothing.
                 break;
@@ -1032,12 +1041,7 @@ public final class TerminalEmulator {
             default:
                 mContinueSequence = false;
 
-                /** TODO: Add more optimizations for escape sequences as we extend the functionality.  For now, just update the entire screen when an escape sequence happens.*/
 
-                if(mEscapeState != ESC_NONE) {
-                    changes.details = "Override change screen because escape sequence";
-                    changes.overrideChangeScreen = true;
-                }
 
                 switch (mEscapeState) {
                     case ESC_NONE:

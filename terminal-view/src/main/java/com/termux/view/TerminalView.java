@@ -512,9 +512,13 @@ public final class TerminalView extends View {
         }
 
         mEmulator.clearScrollCounter();
-        Log.w("OnScreenUpdated", "Changes");
+        Log.w("OnScreenUpdated", "Changes" + changes.possibleDontUpdate);
 
-        if(!changes.overrideChangeScreen && changes.codePointsEmitted == 1 && changes.newLine == 0) {
+
+        if(changes.possibleDontUpdate && changes.codePointsEmitted == 0 && changes.newLine == 0) {
+
+        }
+        else if(!changes.overrideChangeScreen && changes.codePointsEmitted <= 1 && changes.newLine == 0) {
             invalidateGlassesDelta(changes.cursorPrevRow, changes.cursorPrevCol, 0);
 
             invalidateGlassesDelta(changes.cursorCurrRow, changes.cursorCurrCol, 1);
@@ -1065,7 +1069,7 @@ public final class TerminalView extends View {
         //Render delta update bitmap
         Bitmap mySmallBitmap = Bitmap.createBitmap(19, 59, Bitmap.Config.ARGB_8888);
         Canvas mySmallToozCanvas = new Canvas(mySmallBitmap);
-        mySmallToozCanvas.drawColor(Color.RED);
+        mySmallToozCanvas.drawColor(Color.BLACK);
         if(cursor != 0){
             mySmallToozCanvas.drawColor(Color.WHITE);
         }
