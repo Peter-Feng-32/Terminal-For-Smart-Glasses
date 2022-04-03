@@ -49,13 +49,15 @@ public class FrameToGlasses {
     int timeToLive;
     int loop;
 
+    String currFrame;
+    boolean brokenPipe = false;
+
     Context context;
 
     public FrameToGlasses(Context context){
         if(bluetoothAdapter==null) {
             Log.w("Error", "Device doesn't support Bluetooth");
         } else{
-            searchAndConnect(MY_UUID);
         }
         framesSent = 0;
         configureFrameIDBlock(0, 0, false, false, "jpeg", -1, 1);
@@ -89,33 +91,26 @@ public class FrameToGlasses {
     }
 
 
-    public void sendChar(char c, int row, int col, int totalRows, int totalCols){
-        final int SCREENWIDTH = 400;
-        final int SCREENHEIGHT = 640;
-        //Note: Currently terminal screen is fixed at 18 characters wide, 10 characters tall.
-        //If terminal screen is made taller by hiding keyboard, we just show the bottom 10 rows.
-        //Also consider spacing.
-        //Let's have 2px between each x and 10px between each y.
-        int xSpacing = 2;
-        int ySpacing = 10;
-
-        int charXSize = ((SCREENWIDTH - (totalCols - 1) * xSpacing) / totalCols);
-        int x = (charXSize + xSpacing) * col;
-        int charYSize = ((SCREENHEIGHT - (totalRows - 1) * ySpacing) / totalRows);
-        int y = (charYSize + ySpacing) * row;
-
-        //Then each image should be about 20px by 50px
-        setX(x);
-        setY(y);
-        sendFrame(hexChars['c' - 'a']);
-
-    }
-
 
     public void sendFrame(String imageHexString) {
-        if(!isConnected() ) {
+
+
+
+        if(!isConnected() || brokenPipe) {
+            currFrame = imageHexString;
             searchAndConnect(MY_UUID);
-            if (isConnected()) sendFrame(imageHexString);
+            brokenPipe = false;
+
+            if(isConnected() || brokenPipe){
+                sendFrame(imageHexString);
+            } else {
+                if (!isConnected()) {
+                    searchAndConnect(MY_UUID);
+                }
+            }
+
+
+
         } else {
             byte[] headerBytes = generateHeader(imageHexString);
             byte[] frameIDBlockBytes = generateFrameIDBlock();
@@ -134,16 +129,17 @@ public class FrameToGlasses {
                     Log.w("Connection", "Not connected, can't send data.");
                 }
             } catch (IOException e) {
+                Log.w("Exception", "test");
                 e.printStackTrace();
-                searchAndConnect(MY_UUID);
+                brokenPipe = true;
+                sendFrame(imageHexString);
             }
         }
     }
 
-    public void sendFrame(String imageHexString, int x, int y) {
+    public boolean sendFrameDelta(String imageHexString, int x, int y) {
         if(!isConnected()) {
-            searchAndConnect(MY_UUID);
-            if(isConnected()) sendFrame(imageHexString, x, y);
+            return false;
         } else {
             int oldX = this.x;
             int oldY = this.y;
@@ -174,6 +170,7 @@ public class FrameToGlasses {
                 e.printStackTrace();
                 searchAndConnect(MY_UUID);
             }
+            return true;
 
         }
     }
@@ -224,16 +221,46 @@ public class FrameToGlasses {
             for (BluetoothDevice device : pairedDevices) {
                 String deviceName = device.getName();
                 String deviceHardwareAddress = device.getAddress(); // MAC address
-                Log.w(deviceName, deviceHardwareAddress);
+                Log.w("Device Class", String.valueOf(device.getBluetoothClass().getDeviceClass()));
 
-                for(int i = 0; i < device.getUuids().length; i++) {
-                    Log.w("UUID " + i, device.getUuids()[i].getUuid().toString());
+                //Temporary solution until I can figure out how to save devices and have a pairing scheme.
+                //Just check if device name starts with tooz.
+                //Maybe send this data to all device classes 1048(AUDIO_VIDEO_HEADPHONES)?
+                if(deviceName.length() >= 4 && deviceName.substring(0, 4).equals("tooz")) {
+                    if(connectThread == null || connectThread.getState() == Thread.State.TERMINATED){
+                        connectThread = new ConnectThread(device,  device.getUuids()[0].getUuid().toString(), true);
+                        Log.w("Log", "Trying to connect to device address: " + deviceHardwareAddress + "using UUID: " + device.getUuids()[0].getUuid().toString());
+                        connectThread.start();
+
+
+                    }
+
                 }
+            }
+        }
+    }
 
-                if(deviceHardwareAddress.equals("B4:A9:FC:CA:C3:0C")) {
-                    connectThread = new ConnectThread(device, str_UUID);
-                    Log.w("Log", "Trying to connect to device address: " + deviceHardwareAddress + "using UUID: " + str_UUID);
-                    connectThread.start();
+    protected void searchAndConnectAgain(String str_UUID) {
+        Set<BluetoothDevice> pairedDevices = bluetoothAdapter.getBondedDevices();
+        if (pairedDevices.size() > 0) {
+            // There are paired devices. Get the name and address of each paired device.
+            for (BluetoothDevice device : pairedDevices) {
+                String deviceName = device.getName();
+                String deviceHardwareAddress = device.getAddress(); // MAC address
+                Log.w("Device Class", String.valueOf(device.getBluetoothClass().getDeviceClass()));
+
+                //Temporary solution until I can figure out how to save devices and have a pairing scheme.
+                //Just check if device name starts with tooz.
+                //Maybe send this data to all device classes 1048(AUDIO_VIDEO_HEADPHONES)?
+                if(deviceName.length() >= 4 && deviceName.substring(0, 4).equals("tooz")) {
+                    if(connectThread == null || connectThread.getState() == Thread.State.TERMINATED){
+                        connectThread = new ConnectThread(device,  device.getUuids()[0].getUuid().toString(), false);
+                        Log.w("Log", "Trying to connect to device address: " + deviceHardwareAddress + "using UUID: " + device.getUuids()[0].getUuid().toString());
+                        connectThread.start();
+
+
+                    }
+
                 }
             }
         }
@@ -264,15 +291,20 @@ public class FrameToGlasses {
         return connectionSocket != null && connectionSocket.isConnected();
     }
 
-    private class ConnectThread extends Thread {
-        private final BluetoothSocket mmSocket;
-        private final BluetoothDevice mmDevice;
 
-        public ConnectThread(BluetoothDevice device, String myUUID) {
+    private class ConnectThread extends Thread {
+        private BluetoothSocket mmSocket;
+        private final BluetoothDevice mmDevice;
+        private boolean againIfFail;
+        private String myUUID;
+        public ConnectThread(BluetoothDevice device, String myUUID, boolean againIfFail) {
             // Use a temporary object that is later assigned to mmSocket
             // because mmSocket is final.
+
             BluetoothSocket tmp = null;
             mmDevice = device;
+            this.myUUID = myUUID;
+            this.againIfFail = againIfFail;
 
             try {
                 // Get a BluetoothSocket to connect with the given BluetoothDevice.
@@ -295,12 +327,14 @@ public class FrameToGlasses {
                 mmSocket.connect();
             } catch (IOException connectException) {
                 // Unable to connect; close the socket and return.
-                Log.w("Failure", "Unable to connect " + connectException.toString());
+                Log.e("Failure", connectException.toString());
                 try {
                     mmSocket.close();
-                } catch (IOException closeException) {
-                    Log.e("Tag", "Could not close the client socket", closeException);
+                } catch (Exception e2) {
+                    Log.e("Exception", e2.toString());
+
                 }
+                if(againIfFail) searchAndConnectAgain(myUUID);
                 return;
             }
 
@@ -323,7 +357,7 @@ public class FrameToGlasses {
             }
 
             Log.w("Success", "Connection Succeeded");
-
+            sendFrame(currFrame);
 
             /*
             // Keep listening to the InputStream until an exception occurs.
@@ -345,7 +379,6 @@ public class FrameToGlasses {
                 }
             }
                 */
-
         }
 
         // Closes the client socket and causes the thread to finish.

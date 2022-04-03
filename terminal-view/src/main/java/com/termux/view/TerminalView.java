@@ -1074,10 +1074,12 @@ public final class TerminalView extends View {
             mySmallToozCanvas.drawColor(Color.WHITE);
         }
 
-
-        char charToRender = mEmulator.getScreen().getmLines()[mEmulator.getScreen().getActiveTranscriptRows() + row].getmText()[col];
         Log.w("mTopRow", ""+mTopRow + " active rows " +
             +mEmulator.getScreen().getActiveRows() + " active transcript rows " + mEmulator.getScreen().getActiveTranscriptRows());
+
+        Log.w("getLine index", ""+(mEmulator.getScreen().externalToInternalRow(row)));
+        Log.w("getMLines() size", "" +  mEmulator.getScreen().getmLines().length);
+        char charToRender = mEmulator.getScreen().getmLines()[mEmulator.getScreen().externalToInternalRow(row)].getmText()[col];
 
 
         mRenderer.renderToToozExtra(mEmulator, mySmallToozCanvas, mTopRow, sel[0], sel[1], sel[2], sel[3], charToRender, cursor);
@@ -1094,7 +1096,11 @@ public final class TerminalView extends View {
         Log.w("Cell X", "" + cellX);
         Log.w("Cell Y", "" + cellY);
         Log.w("Bitmap Size", "X: " + mySmallBitmap.getWidth() + " Y: " + mySmallBitmap.getHeight());
-        glassesHelper.sendFrame(mySmallS, cellX + TerminalRenderer.leftOffsetTooz-3, cellY);
+        boolean connected = glassesHelper.sendFrameDelta(mySmallS, cellX + TerminalRenderer.leftOffsetTooz-3, cellY);
+        if(!connected) {
+            //Not connected.  Can't send delta update.  Send entire terminal screen.
+            invalidateGlassesFull();
+        }
         //Call onDraw
         invalidate();
     }
