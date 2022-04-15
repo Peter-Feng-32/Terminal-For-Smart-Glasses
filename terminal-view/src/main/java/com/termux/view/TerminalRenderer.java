@@ -104,6 +104,8 @@ public final class TerminalRenderer {
         final int[] palette = mEmulator.mColors.mCurrentColors;
         final int cursorShape = mEmulator.getCursorStyle();
 
+        Log.w("RENDER TOPROW", "" + topRow);
+
         if (reverseVideo)
             canvas.drawColor(palette[TextStyle.COLOR_INDEX_FOREGROUND], PorterDuff.Mode.SRC);
 
@@ -219,7 +221,7 @@ public final class TerminalRenderer {
          and scaling down the font size to compensate when drawing.
          */
 
-
+        Log.w("RENDERTOTOOZ TOPROW", "" + topRow);
 
         char[] spacesArray = new char[columns];
         Arrays.fill(spacesArray, ' ');
@@ -367,7 +369,7 @@ public final class TerminalRenderer {
     /** Render the terminal to a canvas with at a specified row scroll, and an optional rectangular selection. */
     /** TODO: Tooz */
     public final void renderToToozExtra(TerminalEmulator mEmulator, Canvas canvas, int topRow,
-                                   int selectionY1, int selectionY2, int selectionX1, int selectionX2, char c, int cursor) {
+                                   int selectionY1, int selectionY2, int selectionX1, int selectionX2, char c, int cursor, int desiredRow, int desiredCol) {
         final boolean reverseVideo = mEmulator.isReverseVideo();
         final int endRow = topRow + mEmulator.mRows;
         final int columns = mEmulator.mColumns;
@@ -377,6 +379,8 @@ public final class TerminalRenderer {
         final TerminalBuffer screen = mEmulator.getScreen();
         final int[] palette = mEmulator.mColors.mCurrentColors;
         final int cursorShape = mEmulator.getCursorStyle();
+
+        Log.w("RENDERTOTOOZEXTRA", topRow + "");
 
         char[] spacesArray = new char[columns];
         Arrays.fill(spacesArray, ' ');
@@ -417,6 +421,9 @@ public final class TerminalRenderer {
 
         //float heightOffset = mFontLineSpacingAndAscentTooz;
         float heightOffset = 0;
+
+        Log.w("topRow: ", ""+topRow);
+        Log.w("endRow: ", ""+endRow);
 
         for (int row = topRow; row < endRow; row++) {
             heightOffset += mFontLineSpacingTooz;
@@ -472,11 +479,11 @@ public final class TerminalRenderer {
                         if ((cursor != 0) && cursorShape == TerminalEmulator.TERMINAL_CURSOR_STYLE_BLOCK) {
                             invertCursorTextColor = true;
                         }
-                        if(row == topRow && column == 1) {
+                        if(row == topRow + desiredRow && column == 0 + desiredCol) {
                             Log.w("Drawing small", "Column: " + column + " columnWidthSinceLastRun: " + columnWidthSinceLastRun);
 
-                            drawTextRunToozExtra(canvas, new char[]{c}, palette, heightOffset, lastRunStartColumn, columnWidthSinceLastRun,
-                                lastRunStartIndex, charsSinceLastRun, measuredWidthForRun, cursorColor, cursorShape, lastRunStyle, reverseVideo || invertCursorTextColor || lastRunInsideSelection);
+                            drawTextRunToozExtra(canvas, new char[]{c}, palette, mFontLineSpacingTooz, 0, columnWidthSinceLastRun,
+                                0, charsSinceLastRun, measuredWidthForRun, cursorColor, cursorShape, lastRunStyle, reverseVideo || invertCursorTextColor || lastRunInsideSelection);
                         }
 
                     }

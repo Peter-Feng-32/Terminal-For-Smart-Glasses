@@ -2897,9 +2897,10 @@ public final class TerminalEmulator {
                     mCursorRow++;
                 } else {
                     scrollDownOneLine();
-                    changes.details = "Override change screen because scroll";
-                    changes.overrideChangeScreen = true;
+
                 }
+                changes.overrideChangeScreen = true;
+                changes.details = "Override change screen because scroll";
             }
         } else if (cursorInLastColumn && displayWidth == 2) {
             // The behaviour when a wide character is output with cursor in the last column when

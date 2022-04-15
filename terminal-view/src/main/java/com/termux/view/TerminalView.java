@@ -498,6 +498,8 @@ public final class TerminalView extends View {
                 mTopRow -= rowShift;
                 decrementYTextSelectionCursors(rowShift);
             }
+            changes.overrideChangeScreen = true;
+            changes.details = changes.details + " ALSO " + "selecting text";
         }
 
         if (!skipScrolling && mTopRow != 0) {
@@ -509,6 +511,8 @@ public final class TerminalView extends View {
                 awakenScrollBars();
             }
             mTopRow = 0;
+            changes.overrideChangeScreen =  true;
+            changes.details = changes.details + " Scrolled down because updated while previously scrolled up.";
         }
 
         mEmulator.clearScrollCounter();
@@ -1046,7 +1050,6 @@ public final class TerminalView extends View {
         //Render full bitmap
         Bitmap bitmap = Bitmap.createBitmap(400, 640, Bitmap.Config.ARGB_8888);
         Canvas toozCanvas = new Canvas(bitmap);
-        toozCanvas.drawColor(Color.BLUE);
         mRenderer.renderToTooz(mEmulator, toozCanvas, mTopRow, sel[0], sel[1], sel[2], sel[3]);
         //Send full bitmap to tooz
         ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -1055,6 +1058,7 @@ public final class TerminalView extends View {
         String s = bytesToHex(byteArray);
         Log.w("Sent", s);
         glassesHelper.sendFrame(s);
+        Log.w("FULL FRAME", "" + mTopRow);
         //Call onDraw
         invalidate();
 
@@ -1069,7 +1073,6 @@ public final class TerminalView extends View {
         //Render delta update bitmap
         Bitmap mySmallBitmap = Bitmap.createBitmap(19, 59, Bitmap.Config.ARGB_8888);
         Canvas mySmallToozCanvas = new Canvas(mySmallBitmap);
-        mySmallToozCanvas.drawColor(Color.BLACK);
         if(cursor != 0){
             mySmallToozCanvas.drawColor(Color.WHITE);
         }
@@ -1077,12 +1080,14 @@ public final class TerminalView extends View {
         Log.w("mTopRow", ""+mTopRow + " active rows " +
             +mEmulator.getScreen().getActiveRows() + " active transcript rows " + mEmulator.getScreen().getActiveTranscriptRows());
 
+
         Log.w("getLine index", ""+(mEmulator.getScreen().externalToInternalRow(row)));
         Log.w("getMLines() size", "" +  mEmulator.getScreen().getmLines().length);
+
         char charToRender = mEmulator.getScreen().getmLines()[mEmulator.getScreen().externalToInternalRow(row)].getmText()[col];
 
 
-        mRenderer.renderToToozExtra(mEmulator, mySmallToozCanvas, mTopRow, sel[0], sel[1], sel[2], sel[3], charToRender, cursor);
+        mRenderer.renderToToozExtra(mEmulator, mySmallToozCanvas, mTopRow, sel[0], sel[1], sel[2], sel[3], charToRender, cursor, row, col);
         //Send delta update bitmap to Tooz
         ByteArrayOutputStream mySmallOut = new ByteArrayOutputStream();
         mySmallBitmap.compress(Bitmap.CompressFormat.JPEG, 90, mySmallOut);
