@@ -419,14 +419,11 @@ public final class TerminalRenderer {
         if (reverseVideo)
             canvas.drawColor(palette[TextStyle.COLOR_INDEX_FOREGROUND], PorterDuff.Mode.SRC);
 
-        //float heightOffset = mFontLineSpacingAndAscentTooz;
-        float heightOffset = 0;
 
         Log.w("topRow: ", ""+topRow);
         Log.w("endRow: ", ""+endRow);
 
         for (int row = topRow; row < endRow; row++) {
-            heightOffset += mFontLineSpacingTooz;
             final int cursorX = (row == cursorRow && cursorVisible) ? cursorCol : -1;
             int selx1 = -1, selx2 = -1;
             if (row >= selectionY1 && row <= selectionY2) {
@@ -505,15 +502,6 @@ public final class TerminalRenderer {
                 }
             }
 
-            final int columnWidthSinceLastRun = columns - lastRunStartColumn;
-            final int charsSinceLastRun = currentCharIndex - lastRunStartIndex;
-            int cursorColor = lastRunInsideCursor ? mEmulator.mColors.mCurrentColors[TextStyle.COLOR_INDEX_CURSOR] : 0;
-            boolean invertCursorTextColor = false;
-            if (lastRunInsideCursor && cursorShape == TerminalEmulator.TERMINAL_CURSOR_STYLE_BLOCK) {
-                invertCursorTextColor = true;
-            }
-            //drawTextRunToozExtra(canvas, line, palette, heightOffset, lastRunStartColumn, columnWidthSinceLastRun, lastRunStartIndex, charsSinceLastRun,
-            //    measuredWidthForRun, cursorColor, cursorShape, lastRunStyle, reverseVideo || invertCursorTextColor || lastRunInsideSelection);
         }
     }
     public float getWidthBeforeTooz(TerminalEmulator mEmulator, int topRow, int currColumn, int currTopRowOffset) {
@@ -525,7 +513,6 @@ public final class TerminalRenderer {
 
         char[] spacesArray = new char[columns];
         Arrays.fill(spacesArray, ' ');
-        String spaces = new String(spacesArray);
 
         for (int row = topRow; row < endRow; row++) {
             TerminalRow lineObject = screen.allocateFullLineIfNecessary(screen.externalToInternalRow(row));
@@ -542,20 +529,13 @@ public final class TerminalRenderer {
                 final int codePoint = charIsHighsurrogate ? Character.toCodePoint(charAtIndex, line[currentCharIndex + 1]) : charAtIndex;
                 final int codePointWcWidth = WcWidth.width(codePoint);
 
-                final long style = lineObject.getStyle(column);
 
                 // Check if the measured text width for this code point is not the same as that expected by wcwidth().
                 // This could happen for some fonts which are not truly monospace, or for more exotic characters such as
                 // smileys which android font renders as wide.
                 // If this is detected, we draw this code point scaled to match what wcwidth() expects.
 
-                /*
-                final float measuredCodePointWidth = (codePoint < asciiMeasures.length) ? asciiMeasures[codePoint] : mTextPaintTooz.measureText(line,
-                    currentCharIndex, charsForCodePoint);
-                */
                 final float measuredCodePointWidth = mTextPaintTooz.measureText("c", 0, 1);
-
-                final boolean fontWidthMismatch = Math.abs(measuredCodePointWidth / mFontWidthTooz - codePointWcWidth) > 0.01;
                 measuredWidthForRun += measuredCodePointWidth;
                 column += codePointWcWidth;
                 currentCharIndex += charsForCodePoint;
