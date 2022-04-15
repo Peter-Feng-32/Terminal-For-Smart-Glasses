@@ -19,7 +19,7 @@ So, first the terminal screen is drawn onto a blank canvas, and then the canvas 
 
 One caveat with this project is that it will fail if the entire screen is continuously being updated at rates faster than 1 FPS.  This is because if the entire screen is updated, there is nothing to optimize, and the program will just send the entire frame to the glasses, which then processes it at 1 FPS.  When the glasses receives too many frames to process, it will just crash.
 
-Finally, I haven't figured out a permanent connection method to the glasses yet.  Right now, the program is just attempting to connect to any paired device starting with the string "tooz".  
+Finally, I haven't figured out a permanent connection method to the glasses yet.  Right now, the program is just attempting to connect to any paired device starting with the string "tooz".  If you decide to use this project, you can obviously modify it to suit your needs.
 
 ### Support or Contact
 
