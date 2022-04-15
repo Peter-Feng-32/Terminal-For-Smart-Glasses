@@ -1,37 +1,26 @@
-## Welcome to GitHub Pages
+## Terminal For Tooz Smart Glasses
 
-You can use the [editor on GitHub](https://github.com/Peter-Feng-32/Terminal-For-Smart-Glasses/edit/gh-pages/index.md) to maintain and preview the content for your website in Markdown files.
+The goal of this project is to produce a terminal emulator interface for the Tooz Smart-Glasses, a pair of smart-glasses developed by ZEISS.
+To find more information about the Tooz, visit the [Tooz Website](https://tooz.com/product/devkit/)
 
-Whenever you commit to this repository, GitHub Pages will run [Jekyll](https://jekyllrb.com/) to rebuild the pages in your site, from the content in your Markdown files.
+Out of the box, the Tooz Smart-Glasses display 400x640 frames sent by a mobile device at a rate of about 1 FPS.
+However, by using a terminal emulator interface with defined areas for characters, we are able to greatly optimize the frame rate by selectively updating small portions of the screen as needed, resulting in a frame rate increase of up to around 10 FPS.
 
-### Markdown
+This project is built on code from [Termux](https://termux.com/), the open-source terminal emulator for Android, which provides the terminal emulator functionality needed for the whole project to function.
 
-Markdown is a lightweight and easy-to-use syntax for styling your writing. It includes conventions for
+The basic overview is as follows.
+Whenever the terminal emulator receives output, the program checks what output it received and determines how much of the screen needs to be updated.  It then sends a Bluetooth packet containing a frame to the Tooz glasses, which updates the part of the screen accordingly.
+Currently, the functionality is very basic: if one character was received, a single character frame, which is only about 19x59 is sent to the glasses, and with the coordinates to place it.  Otherwise, the entire screen is sent to the glasses.
+This can obviously be optimized and extended for different situations: For example, if an escape sequence was received that cleared a row, we could just send an update for that row to the glasses.
 
-```markdown
-Syntax highlighted code block
+To see how the frame is encoded into a Bluetooth packet, look at FrameToGlasses.java.
+The basic idea is that the Tooz Glasses receives frame data in the form of a JPEG.
+So, first the terminal screen is drawn onto a blank canvas, and then the canvas is encoded into a JPEG.  The JPEG is sent to the glasses along with some other metadata(coordinates, timeToDisplay, etc.).
 
-# Header 1
-## Header 2
-### Header 3
+One caveat with this project is that it will fail if the entire screen is continuously being updated at rates faster than 1 FPS.  This is because if the entire screen is updated, there is nothing to optimize, and the program will just send the entire frame to the glasses, which then processes it at 1 FPS.  When the glasses receives too many frames to process, it will just crash.
 
-- Bulleted
-- List
-
-1. Numbered
-2. List
-
-**Bold** and _Italic_ and `Code` text
-
-[Link](url) and ![Image](src)
-```
-
-For more details see [Basic writing and formatting syntax](https://docs.github.com/en/github/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax).
-
-### Jekyll Themes
-
-Your Pages site will use the layout and styles from the Jekyll theme you have selected in your [repository settings](https://github.com/Peter-Feng-32/Terminal-For-Smart-Glasses/settings/pages). The name of this theme is saved in the Jekyll `_config.yml` configuration file.
+Finally, I haven't figured out a permanent connection method to the glasses yet.  Right now, the program is just attempting to connect to any paired device starting with the string "tooz".  
 
 ### Support or Contact
 
-Having trouble with Pages? Check out our [documentation](https://docs.github.com/categories/github-pages-basics/) or [contact support](https://support.github.com/contact) and we’ll help you sort it out.
+You can email me at pfeng32@gatech.edu
