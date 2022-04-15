@@ -10,7 +10,7 @@ This project is built on code from [Termux](https://termux.com/), the open-sourc
 
 The basic overview is as follows.
 Whenever the terminal emulator receives output, the program checks what output it received and determines how much of the screen needs to be updated.  It then sends a Bluetooth packet containing a frame to the Tooz glasses, which updates the part of the screen accordingly.
-Currently, the functionality is very basic: if one character was received, a single character frame, which is only about 19x59 is sent to the glasses, and with the coordinates to place it.  Otherwise, the entire screen is sent to the glasses.
+Currently, if one character was received, a single character frame, which is only about 19x59 is sent to the glasses, and with the coordinates to place it.  Otherwise, the entire screen is sent to the glasses.
 This can obviously be optimized and extended for different situations: For example, if an escape sequence was received that cleared a row, we could just send an update for that row to the glasses.
 
 To see how the frame is encoded into a Bluetooth packet, look at FrameToGlasses.java.
