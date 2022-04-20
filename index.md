@@ -21,6 +21,15 @@ One caveat with this project is that it will fail if the entire screen is contin
 
 Finally, I haven't figured out a permanent connection method to the glasses yet.  Right now, the program is just attempting to connect to any paired device starting with the string "tooz".  If you decide to use this project, you can obviously modify it to suit your needs.
 
+
+## Installation and Configuration
+
+Installing this project is quite simple.
+You can just install Android Studio onto your computer, clone this repository, and use Android Studio to install this project on your Android device.
+
+More details and examples coming soon.
+
+
 ### Support or Contact
 
 You can email me at pfeng32@gatech.edu
