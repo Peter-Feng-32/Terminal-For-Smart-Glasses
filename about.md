@@ -29,7 +29,10 @@ You can just install Android Studio onto your computer, clone this repository, a
 
 More details and examples coming soon.
 
+## Disclaimer
+We do not guarantee this project for anything.  Use at your own risk.
 
-### Support or Contact
+
+### Contact
 
 You can email me at pfeng32@gatech.edu
