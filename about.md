@@ -33,6 +33,6 @@ More details and examples coming soon.
 We do not guarantee this project for anything.  Use at your own risk.
 
 
-### Contact
+## Contact
 
 You can email me at pfeng32@gatech.edu
