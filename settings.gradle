@@ -1,1 +1,3 @@
 include ':app', ':termux-shared', ':terminal-emulator', ':terminal-view'
+include ':terminal-view:smart-glasses-library'
+include ':smart-glasses'

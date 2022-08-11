@@ -1077,17 +1077,10 @@ public final class TerminalView extends View {
             mySmallToozCanvas.drawColor(Color.WHITE);
         }
 
-        Log.w("mTopRow", ""+mTopRow + " active rows " +
-            +mEmulator.getScreen().getActiveRows() + " active transcript rows " + mEmulator.getScreen().getActiveTranscriptRows());
-
-
-        Log.w("getLine index", ""+(mEmulator.getScreen().externalToInternalRow(row)));
-        Log.w("getMLines() size", "" +  mEmulator.getScreen().getmLines().length);
-
         char charToRender = mEmulator.getScreen().getmLines()[mEmulator.getScreen().externalToInternalRow(row)].getmText()[col];
 
 
-        mRenderer.renderToToozExtra(mEmulator, mySmallToozCanvas, mTopRow, sel[0], sel[1], sel[2], sel[3], charToRender, cursor, row, col);
+        mRenderer.renderToToozSingleChar(mEmulator, mySmallToozCanvas, mTopRow, sel[0], sel[1], sel[2], sel[3], charToRender, cursor, row, col);
         //Send delta update bitmap to Tooz
         ByteArrayOutputStream mySmallOut = new ByteArrayOutputStream();
         mySmallBitmap.compress(Bitmap.CompressFormat.JPEG, 90, mySmallOut);

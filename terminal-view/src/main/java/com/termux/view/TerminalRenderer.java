@@ -221,8 +221,6 @@ public final class TerminalRenderer {
          and scaling down the font size to compensate when drawing.
          */
 
-        Log.w("RENDERTOTOOZ TOPROW", "" + topRow);
-
         char[] spacesArray = new char[columns];
         Arrays.fill(spacesArray, ' ');
         String spaces = new String(spacesArray);
@@ -257,23 +255,11 @@ public final class TerminalRenderer {
 
             textHeight = mFontLineSpacingAndAscentTooz + mFontLineSpacingTooz * mEmulator.mRows;
         }
-
-        /*
-        Log.w("Info2:", String.format("mFontLineSpacingAndAscentTooz: %d, mFontLineSpacingTooz: %d", mFontLineSpacingAndAscentTooz,  (int) Math.ceil(mTextPaintTooz.getFontSpacing())));
-        Log.w("Tooz2", String.format("Size Info: %d chars and %f width, %d height, canvas width %d, canvas height %d", columns, mTextPaintTooz.measureText(spaces), textHeight, canvas.getWidth(), canvas.getHeight()));
-        */
         mFontLineSpacingTooz = (int) Math.ceil(mTextPaintTooz.getFontSpacing());
         mFontAscentTooz = (int) Math.ceil(mTextPaintTooz.ascent());
         mFontLineSpacingAndAscentTooz = mFontLineSpacingTooz + mFontAscentTooz;
         mFontWidthTooz = mTextPaintTooz.measureText(" ");
 
-        /*
-        Log.w("Info3:", String.format("mFontLineSpacingAndAscentTooz: %d, mFontLineSpacingTooz: %d", mFontLineSpacingAndAscentTooz,  (int) Math.ceil(mTextPaintTooz.getFontSpacing())));
-        Log.w("Tooz3", String.format("Size Info: %d chars and %f width, %d height, canvas width %d, canvas height %d", columns, mTextPaintTooz.measureText(spaces), textHeight, canvas.getWidth(), canvas.getHeight()));
-        */
-
-        //Log.w("Tooz", String.format("Column Count: %d", columns));
-        //Log.w("Tooz" , String.format("Text Size: %d", mTextSizeTooz));
         if (reverseVideo)
             canvas.drawColor(palette[TextStyle.COLOR_INDEX_FOREGROUND], PorterDuff.Mode.SRC);
 
@@ -368,7 +354,7 @@ public final class TerminalRenderer {
 
     /** Render the terminal to a canvas with at a specified row scroll, and an optional rectangular selection. */
     /** TODO: Tooz */
-    public final void renderToToozExtra(TerminalEmulator mEmulator, Canvas canvas, int topRow,
+    public final void renderToToozSingleChar(TerminalEmulator mEmulator, Canvas canvas, int topRow,
                                    int selectionY1, int selectionY2, int selectionX1, int selectionX2, char c, int cursor, int desiredRow, int desiredCol) {
         final boolean reverseVideo = mEmulator.isReverseVideo();
         final int endRow = topRow + mEmulator.mRows;
@@ -379,8 +365,6 @@ public final class TerminalRenderer {
         final TerminalBuffer screen = mEmulator.getScreen();
         final int[] palette = mEmulator.mColors.mCurrentColors;
         final int cursorShape = mEmulator.getCursorStyle();
-
-        Log.w("RENDERTOTOOZEXTRA", topRow + "");
 
         char[] spacesArray = new char[columns];
         Arrays.fill(spacesArray, ' ');
@@ -418,10 +402,6 @@ public final class TerminalRenderer {
 
         if (reverseVideo)
             canvas.drawColor(palette[TextStyle.COLOR_INDEX_FOREGROUND], PorterDuff.Mode.SRC);
-
-
-        Log.w("topRow: ", ""+topRow);
-        Log.w("endRow: ", ""+endRow);
 
         for (int row = topRow; row < endRow; row++) {
             final int cursorX = (row == cursorRow && cursorVisible) ? cursorCol : -1;
@@ -463,12 +443,10 @@ public final class TerminalRenderer {
 
                 final boolean fontWidthMismatch = Math.abs(measuredCodePointWidth / mFontWidthTooz - codePointWcWidth) > 0.01;
 
-                //Log.w("TEST", column + "");
                 if (style != lastRunStyle || insideCursor != lastRunInsideCursor || insideSelection != lastRunInsideSelection || fontWidthMismatch || lastRunFontWidthMismatch) {
                     if (column == 0) {
                         // Skip first column as there is nothing to draw, just record the current style.
                     } else {
-                        //Log.w("TEST", column + "");
                         final int columnWidthSinceLastRun = column - lastRunStartColumn;
                         final int charsSinceLastRun = currentCharIndex - lastRunStartIndex;
                         int cursorColor = (cursor != 0) ? mEmulator.mColors.mCurrentColors[TextStyle.COLOR_INDEX_CURSOR] : 0;
@@ -477,9 +455,7 @@ public final class TerminalRenderer {
                             invertCursorTextColor = true;
                         }
                         if(row == topRow + desiredRow && column == 0 + desiredCol) {
-                            Log.w("Drawing small", "Column: " + column + " columnWidthSinceLastRun: " + columnWidthSinceLastRun);
-
-                            drawTextRunToozExtra(canvas, new char[]{c}, palette, mFontLineSpacingTooz, 0, columnWidthSinceLastRun,
+                            drawTextRunToozSingleChar(canvas, new char[]{c}, palette, mFontLineSpacingTooz, 0, columnWidthSinceLastRun,
                                 0, charsSinceLastRun, measuredWidthForRun, cursorColor, cursorShape, lastRunStyle, reverseVideo || invertCursorTextColor || lastRunInsideSelection);
                         }
 
@@ -601,7 +577,7 @@ public final class TerminalRenderer {
     }
 
 
-    private void drawTextRunToozExtra(Canvas canvas, char[] text, int[] palette, float y, int startColumn, int runWidthColumns,
+    private void drawTextRunToozSingleChar(Canvas canvas, char[] text, int[] palette, float y, int startColumn, int runWidthColumns,
                                  int startCharIndex, int runWidthChars, float mes, int cursor, int cursorStyle,
                                  long textStyle, boolean reverseVideo) {
         int foreColor = TextStyle.decodeForeColor(textStyle);
