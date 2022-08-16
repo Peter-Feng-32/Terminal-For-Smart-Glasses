@@ -15,7 +15,7 @@ public final class TerminalRow {
     private final int mColumns;
     /** The text filling this terminal row. */
     public char[] mText;
-    /** The number of java char:s used in {@link #mText}. */
+    /** The number of java chars used in {@link #mText}. */
     private short mSpaceUsed;
     /** If this row has been line wrapped due to text output at the end of line. */
     boolean mLineWrap;

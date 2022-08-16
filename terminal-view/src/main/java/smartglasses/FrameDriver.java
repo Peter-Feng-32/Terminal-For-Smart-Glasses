@@ -1,26 +1,24 @@
-package com.example.smart_glasses;
+package smartglasses;
 
 
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
 import android.content.Context;
-import android.content.res.AssetManager;
 import android.util.Log;
 
-import org.apache.commons.codec.binary.Hex;
-import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.ArrayUtils;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
 import java.util.Set;
 import java.util.UUID;
 
 public class FrameDriver {
+    Context context;
+
     InputStream connectionInputStream;
     OutputStream connectionOutputStream;
     ConnectThread connectThread;
@@ -29,81 +27,36 @@ public class FrameDriver {
 
     String UUID0= "00001101-0000-1000-8000-00805f9b34fb";
     public String MY_UUID = UUID0;
-
-    String[] hexChars = new String[26];
-
-    int framesSent;
-    int x;
-    int y;
-    boolean overlay;
-    boolean important;
-    String format;
-    int timeToLive;
-    int loop;
-
+    int framesSent = 0;
     String currFrame;
-    boolean brokenPipe = false;
 
-    Context context;
+    boolean brokenPipe = false;
 
     public FrameDriver(Context context){
         if(bluetoothAdapter==null) {
             Log.w("Error", "Device doesn't support Bluetooth");
-        } else{
         }
-        framesSent = 0;
-        configureFrameIDBlock(0, 0, false, false, "jpeg", -1, 1);
         this.context = context;
-
-        AssetManager assetManager = context.getAssets();
-
-        try {
-            String[] files = assetManager.list("");
-            for(String s : files) {
-                Log.w("Files", s);
-            }
-            //Can send smaller jpegs, but anything bigger than 400x640 will crash the glasses.
-            InputStream input = assetManager.open("20x50CharC.jpg");
-            String charCHexString = Hex.encodeHexString(IOUtils.toByteArray(input));
-            hexChars['c' - 'a'] = charCHexString;
-
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
     }
 
-    /* s must be an even-length string. */
-    private static byte[] hexStringToByteArray(String s) {
-        int len = s.length();
-        byte[] data = new byte[len / 2];
-        for (int i = 0; i < len; i += 2) {
-            data[i / 2] = (byte) ((Character.digit(s.charAt(i), 16) << 4) + Character.digit(s.charAt(i+1), 16));
-        }
-        return data;
-    }
-
-
-
-    public void sendFrame(String imageHexString) {
+    public void sendFullFrame(String imageHexString) {
+        //Connection code - see if we can optimize this later.
         if(!isConnected() || brokenPipe) {
             currFrame = imageHexString;
             searchAndConnect(MY_UUID);
             brokenPipe = false;
-
-            if(isConnected() || brokenPipe){
-                sendFrame(imageHexString);
+            if(isConnected()){
+                sendFullFrame(imageHexString);
             } else {
                 if (!isConnected()) {
                     searchAndConnect(MY_UUID);
                 }
             }
-
-
-
         } else {
-            byte[] headerBytes = generateHeader(imageHexString);
-            byte[] frameIDBlockBytes = generateFrameIDBlock();
-            byte[] imageBytes = hexStringToByteArray(imageHexString);
+            FrameBlock frameBlock = new FrameBlock(framesSent++);
+            byte[] headerBytes = generateHeader(imageHexString, frameBlock);
+            byte[] frameIDBlockBytes = frameBlock.serialize();
+            byte[] imageBytes = DriverHelper.hexStringToByteArray(imageHexString);
             byte[] ending = {0x13};
             byte[] byteStream = ArrayUtils.addAll(headerBytes, frameIDBlockBytes);
             byteStream = ArrayUtils.addAll(byteStream, imageBytes);
@@ -113,7 +66,6 @@ public class FrameDriver {
                 if (connectionOutputStream != null) {
                     connectionOutputStream.write(byteStream);
                     Log.w("Sent Data", "Sent sendBuffer successfully");
-                    framesSent++;
                 } else {
                     Log.w("Connection", "Not connected, can't send data.");
                 }
@@ -121,7 +73,7 @@ public class FrameDriver {
                 Log.w("Exception", "test");
                 e.printStackTrace();
                 brokenPipe = true;
-                sendFrame(imageHexString);
+                sendFullFrame(imageHexString);
             }
         }
     }
@@ -130,27 +82,23 @@ public class FrameDriver {
         if(!isConnected()) {
             return false;
         } else {
-            int oldX = this.x;
-            int oldY = this.y;
-            boolean oldOverlay = this.overlay;
-            setX(x);
-            setY(y);
-            setOverlay(true);
-            byte[] headerBytes = generateHeader(imageHexString);
-            byte[] frameIDBlockBytes = generateFrameIDBlock();
-            byte[] imageBytes = hexStringToByteArray(imageHexString);
+            FrameBlock frameBlock = new FrameBlock(framesSent++);
+            frameBlock.setX(x);
+            frameBlock.setY(y);
+            frameBlock.setOverlay(true);
+            byte[] headerBytes = generateHeader(imageHexString, frameBlock);
+            byte[] frameIDBlockBytes = frameBlock.serialize();
+            byte[] imageBytes = DriverHelper.hexStringToByteArray(imageHexString);
             byte[] ending = {0x13};
             byte[] byteStream = ArrayUtils.addAll(headerBytes, frameIDBlockBytes);
             byteStream = ArrayUtils.addAll(byteStream, imageBytes);
             byteStream = ArrayUtils.addAll(byteStream, ending);
-            setX(oldX);
-            setY(oldY);
-            setOverlay(oldOverlay);
 
             try {
                 if (connectionOutputStream != null) {
                     connectionOutputStream.write(byteStream);
                     Log.w("Sent Data", "Sent sendBuffer successfully");
+                    Log.w("Image", imageHexString);
                     framesSent++;
                 } else {
                     Log.w("Connection", "Not connected, can't send data.");
@@ -160,31 +108,11 @@ public class FrameDriver {
                 searchAndConnect(MY_UUID);
             }
             return true;
-
         }
     }
 
-    public void configureFrameIDBlock(int x, int y, boolean overlay, boolean important, String format, int timeToLive, int loop){
-        setX(x);
-        setY(y);
-        setOverlay(overlay);
-        setImportant(important);
-        setFormat(format);
-        setTimeToLive(timeToLive);
-        setLoop(loop);
-    }
-
-
-    private byte[] generateFrameIDBlock() {
-        int id = framesSent+1;
-        String frameIDBlockString = String.format(
-            "{\"frameId\":%d,\"x\":%d,\"y\":%d,\"overlay\":%b,\"timeToLive\":%d,\"important\":%b,\"format\":%s,\"loop\":%d}",
-            id, x, y, overlay, timeToLive, important, format, loop
-        );
-        return frameIDBlockString.getBytes(StandardCharsets.UTF_8);
-    }
-    private byte[] generateHeader(String jpegStream) {
-        byte[] frameIDBlock = generateFrameIDBlock();
+    private byte[] generateHeader(String jpegStream, FrameBlock frameBlock) {
+        byte[] frameIDBlock = frameBlock.serialize();
         int frameIDBlockSize = frameIDBlock.length;
         int imageIndexDiff = jpegStream.length()/2;
         byte[] imageIndexDiffBytes = ByteBuffer.allocate(4).putInt(imageIndexDiff).array();
@@ -220,10 +148,7 @@ public class FrameDriver {
                         connectThread = new ConnectThread(device,  device.getUuids()[0].getUuid().toString(), true);
                         Log.w("Log", "Trying to connect to device address: " + deviceHardwareAddress + "using UUID: " + device.getUuids()[0].getUuid().toString());
                         connectThread.start();
-
-
                     }
-
                 }
             }
         }
@@ -246,40 +171,15 @@ public class FrameDriver {
                         connectThread = new ConnectThread(device,  device.getUuids()[0].getUuid().toString(), false);
                         Log.w("Log", "Trying to connect to device address: " + deviceHardwareAddress + "using UUID: " + device.getUuids()[0].getUuid().toString());
                         connectThread.start();
-
-
                     }
-
                 }
             }
         }
     }
 
-    public void setX(int x) {
-        this.x = x;
-    }
-    public void setY(int y) {
-        this.y = y;
-    }
-    public void setOverlay(boolean overlay) {
-        this.overlay = overlay;
-    }
-    public void setImportant(boolean important) {
-        this.important = important;
-    }
-    public void setFormat(String format) {
-        this.format = format;
-    }
-    public void setTimeToLive(int timeToLive) {
-        this.timeToLive = timeToLive;
-    }
-    public void setLoop(int loop) {
-        this.loop = loop;
-    }
     public boolean isConnected() {
         return connectionSocket != null && connectionSocket.isConnected();
     }
-
 
     private class ConnectThread extends Thread {
         private BluetoothSocket mmSocket;
@@ -346,28 +246,8 @@ public class FrameDriver {
             }
 
             Log.w("Success", "Connection Succeeded");
-            sendFrame(currFrame);
+            sendFullFrame(currFrame);
 
-            /*
-            // Keep listening to the InputStream until an exception occurs.
-            while (true) {
-                try {
-                    // Read from the InputStream.
-                    numBytes = tmpIn.read(mmBuffer);
-                    // Send the obtained bytes to the UI activity.
-                    String s = "";
-                    for(int i = 0; i < numBytes; i++) {
-                        s = s + (char)mmBuffer[i] ;
-                    }
-                    Log.w("Reading", s);
-                    byte test = 22;
-                    tmpOut.write(test);
-                } catch (IOException e) {
-                    Log.d("Tag", "Input stream was disconnected", e);
-                    break;
-                }
-            }
-                */
         }
 
         // Closes the client socket and causes the thread to finish.

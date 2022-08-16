@@ -9,6 +9,7 @@ android {
         implementation 'org.apache.commons:commons-lang3:3.12.0'
         implementation 'commons-io:commons-io:2.6'
         implementation 'commons-codec:commons-codec:1.15'
+        implementation project(path: ':terminal-emulator')
 
         api project(":terminal-emulator")
     }

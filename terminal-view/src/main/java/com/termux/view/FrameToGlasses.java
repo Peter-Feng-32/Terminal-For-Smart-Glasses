@@ -108,7 +108,7 @@ public class FrameToGlasses {
                     searchAndConnect(MY_UUID);
                 }
             }
-
+        Log.w("Image", imageHexString);
 
 
         } else {

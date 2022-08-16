@@ -5,9 +5,7 @@ import android.annotation.TargetApi;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
-import android.graphics.Bitmap;
 import android.graphics.Canvas;
-import android.graphics.Color;
 import android.graphics.Typeface;
 import android.os.Build;
 import android.os.Handler;
@@ -41,7 +39,8 @@ import com.termux.terminal.TerminalEmulatorChangeRecorder;
 import com.termux.terminal.TerminalSession;
 import com.termux.view.textselection.TextSelectionCursorController;
 
-import org.apache.commons.io.output.ByteArrayOutputStream;
+import smartglasses.TerminalRendererTooz;
+import smartglasses.ViewDriver;
 
 /** View displaying and interacting with a {@link TerminalSession}. */
 public final class TerminalView extends View {
@@ -93,13 +92,14 @@ public final class TerminalView extends View {
 
 
     /** Necessities for smart-glasses delta rendering */
-    private char[][] mScreenCharsPrev;
     FrameToGlasses glassesHelper;
-
+    ViewDriver viewDriver;
+    public TerminalRendererTooz rendererTooz;
 
     public TerminalView(Context context, AttributeSet attributes) { // NO_UCD (unused code)
         super(context, attributes);
         glassesHelper = new FrameToGlasses(context);
+        viewDriver = new ViewDriver(this, rendererTooz, context);
 
         mGestureRecognizer = new GestureAndScaleRecognizer(context, new GestureAndScaleRecognizer.Listener() {
 
@@ -542,12 +542,15 @@ public final class TerminalView extends View {
     @RequiresApi(api = Build.VERSION_CODES.P)
     public void setTextSize(int textSize) {
         mRenderer = new TerminalRenderer(textSize, mRenderer == null ? Typeface.MONOSPACE : mRenderer.mTypeface);
+        rendererTooz = new TerminalRendererTooz(textSize, rendererTooz == null ? Typeface.MONOSPACE : rendererTooz.mTypeface);
         updateSize();
     }
 
     @RequiresApi(api = Build.VERSION_CODES.P)
     public void setTypeface(Typeface newTypeface) {
         mRenderer = new TerminalRenderer(mRenderer.mTextSize, newTypeface);
+        rendererTooz = new TerminalRendererTooz(rendererTooz.mTextSize, newTypeface);
+
         updateSize();
         Log.w("setTypeFace.invalidate", "test");
         invalidateGlassesFull();
@@ -1043,6 +1046,9 @@ public final class TerminalView extends View {
 
     public void invalidateGlassesFull() {
         // render the terminal view and highlight any selected text
+        //viewDriver.redrawGlassesFull();
+        viewDriver.checkAndHandle(mTopRow);
+/*
         int[] sel = mDefaultSelectors;
         if (mTextSelectionCursorController != null) {
             mTextSelectionCursorController.getSelectors(sel);
@@ -1056,16 +1062,20 @@ public final class TerminalView extends View {
         bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out);
         byte[] byteArray = out.toByteArray();
         String s = bytesToHex(byteArray);
-        Log.w("Sent", s);
+
+     //   Log.w("Sent", s);
         glassesHelper.sendFrame(s);
-        Log.w("FULL FRAME", "" + mTopRow);
+     //   Log.w("FULL FRAME", "" + mTopRow);
         //Call onDraw
+*/
         invalidate();
 
     }
 
     public void invalidateGlassesDelta(int row, int col, int cursor){
+        viewDriver.checkAndHandle(mTopRow);
         // render the terminal view and highlight any selected text
+        /*
         int[] sel = mDefaultSelectors;
         if (mTextSelectionCursorController != null) {
             mTextSelectionCursorController.getSelectors(sel);
@@ -1097,8 +1107,11 @@ public final class TerminalView extends View {
         boolean connected = glassesHelper.sendFrameDelta(mySmallS, cellX + TerminalRenderer.leftOffsetTooz-3, cellY);
         if(!connected) {
             //Not connected.  Can't send delta update.  Send entire terminal screen.
-            invalidateGlassesFull();
-        }
+            //invalidateGlassesFull();
+        }*/
+
+        //viewDriver.redrawGlassesDelta(row, col, cursor, mTopRow);
+
         //Call onDraw
         invalidate();
     }
