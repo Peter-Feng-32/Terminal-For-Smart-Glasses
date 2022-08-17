@@ -42,16 +42,18 @@ public class ViewDriver {
         this.view = view;
         this.emulator = view.mEmulator;
     }
-
     private void updateReferences() {
         this.mRenderer = this.view.rendererTooz;
         this.emulator = view.mEmulator;
+        if(emulator == null) return;
         this.buffer = view.mEmulator.getScreen();
     }
 
     public void updateBuffers(){
         oldScreen = currScreen;
-        currScreen = new char[buffer.getActiveRows() - buffer.getActiveTranscriptRows()][buffer.getmLines()[0].getmText().length];
+        if(buffer == null) return;
+
+        currScreen = new char[buffer.getActiveRows() - buffer.getActiveTranscriptRows()][buffer.getmLines()[buffer.externalToInternalRow(view.getTopRow())].getmText().length];
         for(int i = 0; i < buffer.getActiveRows() - buffer.getActiveTranscriptRows(); i++) {
             TerminalRow row = buffer.getmLines()[buffer.externalToInternalRow(i)];
             for(int j = 0; j < row.getmText().length; j++) {
