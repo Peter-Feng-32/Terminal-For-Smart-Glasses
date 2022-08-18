@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".app.captioning.CaptioningFragment">
+
+    <!-- TODO: Update blank fragment layout -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:text="@string/captioning_fragment"
+        android:textColor="#FFFFFF"
+        android:visibility="visible" />
+
+    <Button
+        android:id="@+id/btn_test_captioning"
+        android:layout_width="127px"
+        android:layout_height="100px"
+        android:background="#EFEBEB"
+        android:text="TestCaptioning"
+        android:translationX="0px"
+        android:translationY="100px"
+        android:visibility="visible">
+    </Button>
+
+</FrameLayout>
