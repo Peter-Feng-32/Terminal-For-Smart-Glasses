@@ -93,7 +93,7 @@ public final class TerminalView extends View {
 
     /** Necessities for smart-glasses delta rendering */
     FrameToGlasses glassesHelper;
-    ViewDriver viewDriver;
+    public ViewDriver viewDriver;
     public TerminalRendererTooz rendererTooz;
 
     public TerminalView(Context context, AttributeSet attributes) { // NO_UCD (unused code)

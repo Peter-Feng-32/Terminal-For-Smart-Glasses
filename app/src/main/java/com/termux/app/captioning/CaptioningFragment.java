@@ -63,9 +63,15 @@ public class CaptioningFragment extends Fragment {
 
 
     public void testCaptioning() {
-        Log.w("Test Captioning", "Success");
+        Log.w("Test Captioning", "Success!!!");
         TerminalBuffer buffer = ((TermuxActivity)getActivity()).getTerminalView().mEmulator.getScreen();
+        Log.w("Preparing to  write", "Test");
         Log.w("Buffer", "" + buffer.getmLines()[buffer.externalToInternalRow(0)].getmText()[1]);
+        ((TermuxActivity)getActivity()).getTerminalView().mEmulator.append(new byte[]{72},1);
+        //Note: this doesn't update the screen.
+        ((TermuxActivity)getActivity()).getTerminalView().viewDriver.checkAndHandle(((TermuxActivity)getActivity()).getTerminalView().getTopRow());
+        ((TermuxActivity)getActivity()).getTerminalView().invalidate();
+        Log.w("Write to emulator", "Test");
     }
 
     @Override

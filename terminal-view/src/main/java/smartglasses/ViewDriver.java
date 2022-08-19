@@ -55,7 +55,7 @@ public class ViewDriver {
 
         currScreen = new char[buffer.getActiveRows() - buffer.getActiveTranscriptRows()][buffer.getmLines()[buffer.externalToInternalRow(view.getTopRow())].getmText().length];
         for(int i = 0; i < buffer.getActiveRows() - buffer.getActiveTranscriptRows(); i++) {
-            TerminalRow row = buffer.getmLines()[buffer.externalToInternalRow(i)];
+            TerminalRow row = buffer.getmLines()[buffer.externalToInternalRow(view.getTopRow() + i)];
             for(int j = 0; j < row.getmText().length; j++) {
                 currScreen[i][j] = row.getmText()[j];
             }
@@ -92,7 +92,9 @@ public class ViewDriver {
     public void checkAndHandle(int topRow) {
         updateReferences();
         updateBuffers();
+
         int diffChars = countDiffChars();
+        Log.w("TopRow DiffChars", "" + topRow + " " + diffChars);
         //if only 1 character change, draw that single character.
         if(diffChars == -1) return;
         if(diffChars == 0) {
@@ -112,26 +114,12 @@ public class ViewDriver {
         else {
             //Else redraw the whole screen.
             //Log.w("REDRAWING FULL", "" + diffChars);
-            redrawGlassesFull();
+            redrawGlassesFull(topRow);
         }
 
         //Check if the cursor position changed and redraw the old+new cursor positions.
     }
 
-    public void redrawGlassesFull() {
-        updateReferences();
-        //Render full bitmap
-        Bitmap bitmap = Bitmap.createBitmap(400, 640, Bitmap.Config.ARGB_8888);
-        Canvas toozCanvas = new Canvas(bitmap);
-        mRenderer.renderToTooz(emulator, toozCanvas, 0, -1,-1,-1,-1);
-        //Send full bitmap to tooz
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out);
-        byte[] byteArray = out.toByteArray();
-        String s = DriverHelper.bytesToHex(byteArray);
-        Log.w("Sent", s);
-        frameDriver.sendFullFrame(s);
-    }
     public void redrawGlassesFull(int topRow) {
         updateReferences();
         //Render full bitmap
@@ -175,7 +163,7 @@ public class ViewDriver {
         boolean connected = frameDriver.sendFrameDelta(mySmallS, cellX + TerminalRenderer.leftOffsetTooz-3, cellY);
         if(!connected) {
             //Not connected.  Can't send delta update.  Send entire terminal screen.
-            redrawGlassesFull();
+            redrawGlassesFull(topRow);
         }
     }
 

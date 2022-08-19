@@ -21,3 +21,5 @@ Scrolling Issue?  Rewrite so we aren't doing renders onDraw?
 
 Thad: Do everything at the terminal emulator level.  Make the optimal decision for each terminal emulator command.
     -> Investigate how stuff at the terminal level interacts with stuff on the Android Screen level.
+
+Files changed from original: TerminalView, TerminalEmulator, TerminalSession, activity_termux.

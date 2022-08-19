@@ -850,7 +850,7 @@ public class TerminalRendererTooz {
             mTextPaintTooz.setColor(foreColor);
 
             // The text alignment is the default Paint.Align.LEFT.
-            Log.w("Draw", "StartIndex: " + startCharIndex + " runWidth" + runWidthChars + " left: " + left +  " text: " + String.valueOf(text));
+            //Log.w("Draw", "StartIndex: " + startCharIndex + " runWidth" + runWidthChars + " left: " + left +  " text: " + String.valueOf(text));
             canvas.drawText(text, startCharIndex, runWidthChars, left, y - mFontLineSpacingAndAscentTooz, mTextPaintTooz);
             //canvas.drawText("abcdefghijk", 0, 5, left, y - mFontLineSpacingAndAscent, mTextPaint);
 
