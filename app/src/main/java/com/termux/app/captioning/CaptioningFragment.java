@@ -97,6 +97,9 @@ public class CaptioningFragment extends Fragment {
         (formattedTranscript, updateType) -> {
             getActivity().runOnUiThread(
                 () -> {
+
+                    Log.w("Captioning Fragment", "transcriptUpdater");
+
                     if(updateType == TranscriptionResultUpdatePublisher.UpdateType.TRANSCRIPT_UPDATED) {
                         testCaptioning(formattedTranscript.toString());
 
@@ -109,18 +112,18 @@ public class CaptioningFragment extends Fragment {
 
     private Runnable readMicData =
         () -> {
+            Log.w("CaptioningFragment", "readMicData");
             if (audioRecord.getState() != AudioRecord.STATE_INITIALIZED) {
                 return;
             }
             recognizer.init(CHUNK_SIZE_SAMPLES);
             while (audioRecord.getRecordingState() == AudioRecord.RECORDSTATE_RECORDING) {
+                Log.w("CaptioningFragment", "RECORDSTATE_RECORDING");
                 audioRecord.read(buffer, 0, CHUNK_SIZE_SAMPLES * BYTES_PER_SAMPLE);
                 recognizer.processAudioBytes(buffer);
             }
             recognizer.stop();
         };
-
-
 
 
     /**
@@ -263,7 +266,7 @@ public class CaptioningFragment extends Fragment {
                         "This app does not work without the Microphone permission.",
                         Toast.LENGTH_SHORT)
                         .show();
-                    //getActivity().finish();
+                    getActivity().finish();
                 }
                 return;
             default: // Should not happen. Something we did not request.
@@ -312,9 +315,12 @@ public class CaptioningFragment extends Fragment {
                 .setNetworkConnectionChecker(networkChecker);
         recognizer = recognizerBuilder.build();
         recognizer.registerCallback(transcriptUpdater, ResultSource.WHOLE_RESULT);
+        Log.w("CaptioningFragment", "registerCallback");
     }
 
     private void startRecording() {
+        Log.w("CaptioningFragment", "Start Recording");
+
         if (audioRecord == null) {
 
             audioRecord =
@@ -333,6 +339,8 @@ public class CaptioningFragment extends Fragment {
     /** The API won't work without a valid API key. This prompts the user to enter one. */
     private void showAPIKeyDialog() {
         saveApiKey(getActivity(), "AIzaSyAofDrGGuie_Y6OtQiIMF72bII8S7w_J9Y");
+        Log.w("CaptioningFragment", "show API Key Dialogue");
+
         constructRepeatingRecognitionSession();
         startRecording();
     }
