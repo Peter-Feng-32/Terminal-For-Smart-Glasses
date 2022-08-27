@@ -9,9 +9,56 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 
+import com.google.audio.CodecAndBitrate;
+import com.google.audio.NetworkConnectionChecker;
 import com.termux.R;
 import com.termux.app.TermuxActivity;
 import com.termux.terminal.TerminalBuffer;
+
+
+
+/** Captioning Libraries */
+
+
+import static com.google.audio.asr.SpeechRecognitionModelOptions.SpecificModel.DICTATION_DEFAULT;
+import static com.google.audio.asr.SpeechRecognitionModelOptions.SpecificModel.VIDEO;
+import static com.google.audio.asr.TranscriptionResultFormatterOptions.TranscriptColoringStyle.NO_COLORING;
+
+import android.Manifest;
+import android.content.Context;
+import android.content.pm.PackageManager;
+import android.media.AudioFormat;
+import android.media.AudioRecord;
+import android.media.MediaRecorder;
+import android.os.Bundle;
+import android.preference.PreferenceManager;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+import androidx.appcompat.app.AlertDialog;
+import android.text.Html;
+import android.text.InputType;
+import android.text.method.LinkMovementMethod;
+import android.view.View;
+import android.widget.AdapterView;
+import android.widget.AdapterView.OnItemSelectedListener;
+import android.widget.ArrayAdapter;
+import android.widget.EditText;
+import android.widget.LinearLayout;
+import android.widget.Spinner;
+import android.widget.TextView;
+import android.widget.Toast;
+import com.google.audio.asr.CloudSpeechSessionParams;
+import com.google.audio.asr.CloudSpeechStreamObserverParams;
+import com.google.audio.asr.RepeatingRecognitionSession;
+import com.google.audio.asr.SafeTranscriptionResultFormatter;
+import com.google.audio.asr.SpeechRecognitionModelOptions;
+import com.google.audio.asr.TranscriptionResultFormatterOptions;
+import com.google.audio.asr.TranscriptionResultUpdatePublisher;
+import com.google.audio.asr.TranscriptionResultUpdatePublisher.ResultSource;
+import com.google.audio.asr.cloud.CloudSpeechSessionFactory;
+
+import java.nio.charset.StandardCharsets;
+
 
 /**
  * A simple {@link Fragment} subclass.
@@ -21,29 +68,70 @@ import com.termux.terminal.TerminalBuffer;
  */
 public class CaptioningFragment extends Fragment {
 
-    // TODO: Rename parameter arguments, choose names that match
-    // the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
-    private static final String ARG_PARAM1 = "param1";
-    private static final String ARG_PARAM2 = "param2";
+    /** Captioning Library stuff */
 
-    // TODO: Rename and change types of parameters
-    private String mParam1;
-    private String mParam2;
+    private static final int PERMISSIONS_REQUEST_RECORD_AUDIO = 1;
+
+    private static final int MIC_CHANNELS = AudioFormat.CHANNEL_IN_MONO;
+    private static final int MIC_CHANNEL_ENCODING = AudioFormat.ENCODING_PCM_16BIT;
+    private static final int MIC_SOURCE = MediaRecorder.AudioSource.VOICE_RECOGNITION;
+    private static final int SAMPLE_RATE = 16000;
+    private static final int CHUNK_SIZE_SAMPLES = 1280;
+    private static final int BYTES_PER_SAMPLE = 2;
+    private static final String SHARE_PREF_API_KEY = "api_key";
+
+    private int currentLanguageCodePosition;
+    private String currentLanguageCode;
+
+    private AudioRecord audioRecord;
+    private final byte[] buffer = new byte[BYTES_PER_SAMPLE * CHUNK_SIZE_SAMPLES];
+
+    // This class was intended to be used from a thread where timing is not critical (i.e. do not
+    // call this in a system audio callback). Network calls will be made during all of the functions
+    // that RepeatingRecognitionSession inherits from SampleProcessorInterface.
+    private RepeatingRecognitionSession recognizer;
+    private NetworkConnectionChecker networkChecker;
+    private TextView transcript;
+
+    private final TranscriptionResultUpdatePublisher transcriptUpdater =
+        (formattedTranscript, updateType) -> {
+            getActivity().runOnUiThread(
+                () -> {
+                    if(updateType == TranscriptionResultUpdatePublisher.UpdateType.TRANSCRIPT_UPDATED) {
+                        testCaptioning(formattedTranscript.toString());
+
+                    }
+                     if(updateType == TranscriptionResultUpdatePublisher.UpdateType.TRANSCRIPT_FINALIZED) {
+                         recognizer.resetAndClearTranscript();
+                     }
+                });
+        };
+
+    private Runnable readMicData =
+        () -> {
+            if (audioRecord.getState() != AudioRecord.STATE_INITIALIZED) {
+                return;
+            }
+            recognizer.init(CHUNK_SIZE_SAMPLES);
+            while (audioRecord.getRecordingState() == AudioRecord.RECORDSTATE_RECORDING) {
+                audioRecord.read(buffer, 0, CHUNK_SIZE_SAMPLES * BYTES_PER_SAMPLE);
+                recognizer.processAudioBytes(buffer);
+            }
+            recognizer.stop();
+        };
+
+
+
 
     /**
      * Use this factory method to create a new instance of
      * this fragment using the provided parameters.
      *
-     * @param param1 Parameter 1.
-     * @param param2 Parameter 2.
      * @return A new instance of fragment CaptioningFragment.
      */
-    // TODO: Rename and change types and number of parameters
-    public static CaptioningFragment newInstance(String param1, String param2) {
+    public static CaptioningFragment newInstance() {
         CaptioningFragment fragment = new CaptioningFragment();
         Bundle args = new Bundle();
-        args.putString(ARG_PARAM1, param1);
-        args.putString(ARG_PARAM2, param2);
         fragment.setArguments(args);
         return fragment;
     }
@@ -55,19 +143,48 @@ public class CaptioningFragment extends Fragment {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        if (getArguments() != null) {
-            mParam1 = getArguments().getString(ARG_PARAM1);
-            mParam2 = getArguments().getString(ARG_PARAM2);
-        }
+        initLanguageLocale();
     }
 
 
     public void testCaptioning() {
         Log.w("Test Captioning", "Success!!!");
         TerminalBuffer buffer = ((TermuxActivity)getActivity()).getTerminalView().mEmulator.getScreen();
-        Log.w("Preparing to  write", "Test");
+        Log.w("Preparing to write", "Test");
         Log.w("Buffer", "" + buffer.getmLines()[buffer.externalToInternalRow(0)].getmText()[1]);
         ((TermuxActivity)getActivity()).getTerminalView().mEmulator.append(new byte[]{72},1);
+        //Note: this doesn't update the screen.
+        ((TermuxActivity)getActivity()).getTerminalView().viewDriver.checkAndHandle(((TermuxActivity)getActivity()).getTerminalView().getTopRow());
+        ((TermuxActivity)getActivity()).getTerminalView().invalidate();
+        Log.w("Write to emulator", "Test");
+    }
+
+
+    public void testCaptioning(String caption) {
+        Log.w("Test Captioning", "Success!!!");
+        TerminalBuffer buffer = ((TermuxActivity)getActivity()).getTerminalView().mEmulator.getScreen();
+        Log.w("Preparing to write", "Test");
+        Log.w("Buffer", "" + buffer.getmLines()[buffer.externalToInternalRow(0)].getmText()[1]);
+
+
+        String escapeSeq = "\033[2J\033[H"; //Clear screen and move cursor to top left.
+        ((TermuxActivity)getActivity()).getTerminalView().mEmulator.append(escapeSeq.getBytes(), escapeSeq.length());
+        //Let's write only 35 characters.
+        String startWord;
+        if(caption.length() < 35) {
+            startWord = caption;
+        } else {
+            int i = caption.length() - 35;
+            while(caption.getBytes(StandardCharsets.UTF_8)[i] != ' ') {
+                i++;
+            }
+            startWord = caption.substring(i);
+        }
+        Log.w("Caption", caption + ' ' + startWord);
+
+        ((TermuxActivity)getActivity()).getTerminalView().mEmulator.append(startWord.getBytes(StandardCharsets.UTF_8),startWord.getBytes(StandardCharsets.UTF_8).length);
+
+
         //Note: this doesn't update the screen.
         ((TermuxActivity)getActivity()).getTerminalView().viewDriver.checkAndHandle(((TermuxActivity)getActivity()).getTerminalView().getTopRow());
         ((TermuxActivity)getActivity()).getTerminalView().invalidate();
@@ -93,4 +210,146 @@ public class CaptioningFragment extends Fragment {
 
         return view;
     }
+
+
+    @Override
+    public void onStart() {
+        super.onStart();
+        if (ContextCompat.checkSelfPermission(getActivity(), Manifest.permission.RECORD_AUDIO)
+            != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(
+                getActivity(), new String[] {Manifest.permission.RECORD_AUDIO}, PERMISSIONS_REQUEST_RECORD_AUDIO);
+        } else {
+            showAPIKeyDialog();
+        }
+    }
+
+    @Override
+    public void onStop() {
+        super.onStop();
+        if (audioRecord != null) {
+            audioRecord.stop();
+        }
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        if (recognizer != null) {
+            recognizer.unregisterCallback(transcriptUpdater);
+            networkChecker.unregisterNetworkCallback();
+        }
+    }
+
+
+
+
+
+    /** Captioning Functions */
+
+    @Override
+    public void onRequestPermissionsResult(
+        int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        switch (requestCode) {
+            case PERMISSIONS_REQUEST_RECORD_AUDIO:
+                // If request is cancelled, the result arrays are empty.
+                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    showAPIKeyDialog();
+                } else {
+                    // This should nag user again if they launch without the permissions.
+                    Toast.makeText(
+                        getActivity(),
+                        "This app does not work without the Microphone permission.",
+                        Toast.LENGTH_SHORT)
+                        .show();
+                    //getActivity().finish();
+                }
+                return;
+            default: // Should not happen. Something we did not request.
+        }
+    }
+
+    private void initLanguageLocale() {
+        // The default locale is en-US.
+        currentLanguageCode = "en-US";
+        currentLanguageCodePosition = 22;
+    }
+
+    private void constructRepeatingRecognitionSession() {
+        SpeechRecognitionModelOptions options =
+            SpeechRecognitionModelOptions.newBuilder()
+                .setLocale(currentLanguageCode)
+                // As of 7/18/19, Cloud Speech's video model supports en-US only.
+                .setModel(currentLanguageCode.equals("en-US") ? VIDEO : DICTATION_DEFAULT)
+                .build();
+        CloudSpeechSessionParams cloudParams =
+            CloudSpeechSessionParams.newBuilder()
+                .setObserverParams(
+                    CloudSpeechStreamObserverParams.newBuilder().setRejectUnstableHypotheses(false))
+                .setFilterProfanity(true)
+                .setEncoderParams(
+                    CloudSpeechSessionParams.EncoderParams.newBuilder()
+                        .setEnableEncoder(true)
+                        .setAllowVbr(true)
+                        .setCodec(CodecAndBitrate.UNDEFINED))
+                .build();
+        networkChecker = new NetworkConnectionChecker(getActivity());
+        networkChecker.registerNetworkCallback();
+
+        // There are lots of options for formatting the text. These can be useful for debugging
+        // and visualization, but it increases the effort of reading the transcripts.
+        TranscriptionResultFormatterOptions formatterOptions =
+            TranscriptionResultFormatterOptions.newBuilder()
+                .setTranscriptColoringStyle(NO_COLORING)
+                .build();
+        RepeatingRecognitionSession.Builder recognizerBuilder =
+            RepeatingRecognitionSession.newBuilder()
+                .setSpeechSessionFactory(new CloudSpeechSessionFactory(cloudParams, getApiKey(getActivity())))
+                .setSampleRateHz(SAMPLE_RATE)
+                .setTranscriptionResultFormatter(new SafeTranscriptionResultFormatter(formatterOptions))
+                .setSpeechRecognitionModelOptions(options)
+                .setNetworkConnectionChecker(networkChecker);
+        recognizer = recognizerBuilder.build();
+        recognizer.registerCallback(transcriptUpdater, ResultSource.WHOLE_RESULT);
+    }
+
+    private void startRecording() {
+        if (audioRecord == null) {
+
+            audioRecord =
+                new AudioRecord(
+                    MIC_SOURCE,
+                    SAMPLE_RATE,
+                    MIC_CHANNELS,
+                    MIC_CHANNEL_ENCODING,
+                    CHUNK_SIZE_SAMPLES * BYTES_PER_SAMPLE);
+        }
+
+        audioRecord.startRecording();
+        new Thread(readMicData).start();
+    }
+
+    /** The API won't work without a valid API key. This prompts the user to enter one. */
+    private void showAPIKeyDialog() {
+        saveApiKey(getActivity(), "AIzaSyAofDrGGuie_Y6OtQiIMF72bII8S7w_J9Y");
+        constructRepeatingRecognitionSession();
+        startRecording();
+    }
+
+
+    /** Saves the API Key in user shared preference. */
+    private static void saveApiKey(Context context, String key) {
+        PreferenceManager.getDefaultSharedPreferences(context)
+            .edit()
+            .putString(SHARE_PREF_API_KEY, key)
+            .commit();
+    }
+
+    /** Gets the API key from shared preference. */
+    private static String getApiKey(Context context) {
+        return PreferenceManager.getDefaultSharedPreferences(context).getString(SHARE_PREF_API_KEY, "");
+    }
+
+
 }

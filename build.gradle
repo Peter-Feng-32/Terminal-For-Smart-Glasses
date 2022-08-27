@@ -8,6 +8,11 @@ buildscript {
     }
 }
 
+plugins {
+    id 'com.google.protobuf' version '0.8.12' apply false
+
+}
+
 allprojects {
     repositories {
         google()
@@ -15,6 +20,7 @@ allprojects {
         maven { url "https://jitpack.io" }
     }
 }
+
 
 task clean(type: Delete) {
     delete rootProject.buildDir

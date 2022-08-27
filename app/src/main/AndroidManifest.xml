@@ -35,8 +35,9 @@
     <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" tools:ignore="ProtectedPermissions" />
-
+<!-- TODO: tools: replace comes from the fact that the captioning manifest has duplicate properties.  Fix later.-->
     <application
+        tools:replace="android:allowBackup, android:label, android:supportsRtl, android:theme"
         android:name=".app.TermuxApplication"
         android:allowBackup="false"
         android:banner="@drawable/banner"
