@@ -9,19 +9,31 @@
     <TextView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:background="#FFFFFF"
         android:text="@string/captioning_fragment"
-        android:textColor="#FFFFFF"
+        android:textColor="#000000"
         android:visibility="visible" />
 
     <Button
         android:id="@+id/btn_test_captioning"
-        android:layout_width="127px"
+        android:layout_width="194dp"
         android:layout_height="100px"
-        android:background="#EFEBEB"
-        android:text="TestCaptioning"
+        android:background="#000000"
+        android:text="Start Captioning"
+        android:textColor="#FFFFFF"
         android:translationX="0px"
-        android:translationY="100px"
-        android:visibility="visible">
-    </Button>
+        android:translationY="150px"
+        android:visibility="visible"></Button>
+
+    <EditText
+        android:id="@+id/captioning_api_key_input"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:duplicateParentState="false"
+        android:ems="10"
+        android:inputType="textPersonName"
+        android:textColor="#000000"
+        android:translationY="30px" />
+
 
 </FrameLayout>

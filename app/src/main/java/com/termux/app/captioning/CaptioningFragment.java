@@ -91,7 +91,12 @@ public class CaptioningFragment extends Fragment {
     // that RepeatingRecognitionSession inherits from SampleProcessorInterface.
     private RepeatingRecognitionSession recognizer;
     private NetworkConnectionChecker networkChecker;
-    private TextView transcript;
+
+
+    //My start-stop implementation
+    private boolean currentlyCaptioning = false;
+    private boolean pausedCaptioning = false;
+    private TextView apiKeyEditView;
 
     private final TranscriptionResultUpdatePublisher transcriptUpdater =
         (formattedTranscript, updateType) -> {
@@ -118,7 +123,6 @@ public class CaptioningFragment extends Fragment {
             }
             recognizer.init(CHUNK_SIZE_SAMPLES);
             while (audioRecord.getRecordingState() == AudioRecord.RECORDSTATE_RECORDING) {
-                Log.w("CaptioningFragment", "RECORDSTATE_RECORDING");
                 audioRecord.read(buffer, 0, CHUNK_SIZE_SAMPLES * BYTES_PER_SAMPLE);
                 recognizer.processAudioBytes(buffer);
             }
@@ -149,41 +153,23 @@ public class CaptioningFragment extends Fragment {
         initLanguageLocale();
     }
 
-
-    public void testCaptioning() {
-        Log.w("Test Captioning", "Success!!!");
-        TerminalBuffer buffer = ((TermuxActivity)getActivity()).getTerminalView().mEmulator.getScreen();
-        Log.w("Preparing to write", "Test");
-        Log.w("Buffer", "" + buffer.getmLines()[buffer.externalToInternalRow(0)].getmText()[1]);
-        ((TermuxActivity)getActivity()).getTerminalView().mEmulator.append(new byte[]{72},1);
-        //Note: this doesn't update the screen.
-        ((TermuxActivity)getActivity()).getTerminalView().viewDriver.checkAndHandle(((TermuxActivity)getActivity()).getTerminalView().getTopRow());
-        ((TermuxActivity)getActivity()).getTerminalView().invalidate();
-        Log.w("Write to emulator", "Test");
-    }
-
-
     public void testCaptioning(String caption) {
-        Log.w("Test Captioning", "Success!!!");
         TerminalBuffer buffer = ((TermuxActivity)getActivity()).getTerminalView().mEmulator.getScreen();
-        Log.w("Preparing to write", "Test");
-        Log.w("Buffer", "" + buffer.getmLines()[buffer.externalToInternalRow(0)].getmText()[1]);
-
 
         String escapeSeq = "\033[2J\033[H"; //Clear screen and move cursor to top left.
         ((TermuxActivity)getActivity()).getTerminalView().mEmulator.append(escapeSeq.getBytes(), escapeSeq.length());
         //Let's write only 35 characters.
+        final int MAX_LENGTH_TO_WRITE = 35;
         String startWord;
-        if(caption.length() < 35) {
+        if(caption.length() < MAX_LENGTH_TO_WRITE) {
             startWord = caption;
         } else {
-            int i = caption.length() - 35;
+            int i = caption.length() - MAX_LENGTH_TO_WRITE;
             while(caption.getBytes(StandardCharsets.UTF_8)[i] != ' ') {
                 i++;
             }
             startWord = caption.substring(i);
         }
-        Log.w("Caption", caption + ' ' + startWord);
 
         ((TermuxActivity)getActivity()).getTerminalView().mEmulator.append(startWord.getBytes(StandardCharsets.UTF_8),startWord.getBytes(StandardCharsets.UTF_8).length);
 
@@ -191,7 +177,6 @@ public class CaptioningFragment extends Fragment {
         //Note: this doesn't update the screen.
         ((TermuxActivity)getActivity()).getTerminalView().viewDriver.checkAndHandle(((TermuxActivity)getActivity()).getTerminalView().getTopRow());
         ((TermuxActivity)getActivity()).getTerminalView().invalidate();
-        Log.w("Write to emulator", "Test");
     }
 
     @Override
@@ -200,14 +185,15 @@ public class CaptioningFragment extends Fragment {
         // Inflate the layout for this fragment
         View view = inflater.inflate(R.layout.fragment_captioning, container, false);
 
-        Button button = (Button) view.findViewById(R.id.btn_test_captioning);
+        apiKeyEditView = view.findViewById(R.id.captioning_api_key_input);
+        apiKeyEditView.setText(getApiKey(getActivity()));
+        Button button = view.findViewById(R.id.btn_test_captioning);
         button.setOnClickListener(new View.OnClickListener()
         {
             @Override
             public void onClick(View v)
             {
-                // do something
-                testCaptioning();
+                startRecognitionSession();
             }
         });
 
@@ -218,20 +204,26 @@ public class CaptioningFragment extends Fragment {
     @Override
     public void onStart() {
         super.onStart();
-        if (ContextCompat.checkSelfPermission(getActivity(), Manifest.permission.RECORD_AUDIO)
-            != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(
-                getActivity(), new String[] {Manifest.permission.RECORD_AUDIO}, PERMISSIONS_REQUEST_RECORD_AUDIO);
-        } else {
-            showAPIKeyDialog();
-        }
+
     }
 
     @Override
     public void onStop() {
         super.onStop();
-        if (audioRecord != null) {
-            audioRecord.stop();
+        if(currentlyCaptioning) {
+            stopRecognitionSession();
+            Log.w("CaptioningFragment", "Paused Captioning");
+            pausedCaptioning = true;
+        }
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        if(pausedCaptioning) {
+            startRecognitionSession();
+            Log.w("CaptioningFragment", "Resumed Captioning");
+            pausedCaptioning = false;
         }
     }
 
@@ -244,10 +236,6 @@ public class CaptioningFragment extends Fragment {
         }
     }
 
-
-
-
-
     /** Captioning Functions */
 
     @Override
@@ -258,7 +246,20 @@ public class CaptioningFragment extends Fragment {
             case PERMISSIONS_REQUEST_RECORD_AUDIO:
                 // If request is cancelled, the result arrays are empty.
                 if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    showAPIKeyDialog();
+                    saveApiKey(getActivity(), apiKeyEditView.getText().toString());
+                    constructRepeatingRecognitionSession();
+                    startRecording();
+                    currentlyCaptioning = true;
+                    Button button = getActivity().findViewById(R.id.btn_test_captioning);
+                    button.setText("Stop Captioning");
+                    button.setOnClickListener(new View.OnClickListener()
+                    {
+                        @Override
+                        public void onClick(View v)
+                        {
+                            stopRecognitionSession();
+                        }
+                    });
                 } else {
                     // This should nag user again if they launch without the permissions.
                     Toast.makeText(
@@ -315,12 +316,9 @@ public class CaptioningFragment extends Fragment {
                 .setNetworkConnectionChecker(networkChecker);
         recognizer = recognizerBuilder.build();
         recognizer.registerCallback(transcriptUpdater, ResultSource.WHOLE_RESULT);
-        Log.w("CaptioningFragment", "registerCallback");
     }
 
     private void startRecording() {
-        Log.w("CaptioningFragment", "Start Recording");
-
         if (audioRecord == null) {
 
             audioRecord =
@@ -337,12 +335,51 @@ public class CaptioningFragment extends Fragment {
     }
 
     /** The API won't work without a valid API key. This prompts the user to enter one. */
-    private void showAPIKeyDialog() {
-        saveApiKey(getActivity(), "AIzaSyAofDrGGuie_Y6OtQiIMF72bII8S7w_J9Y");
-        Log.w("CaptioningFragment", "show API Key Dialogue");
+    private void startRecognitionSession() {
 
-        constructRepeatingRecognitionSession();
-        startRecording();
+        if (ContextCompat.checkSelfPermission(getActivity(), Manifest.permission.RECORD_AUDIO)
+            != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(
+                getActivity(), new String[] {Manifest.permission.RECORD_AUDIO}, PERMISSIONS_REQUEST_RECORD_AUDIO);
+        } else {
+            saveApiKey(getActivity(), apiKeyEditView.getText().toString());
+            constructRepeatingRecognitionSession();
+            startRecording();
+            currentlyCaptioning = true;
+            Button button = getActivity().findViewById(R.id.btn_test_captioning);
+            button.setText("Stop Captioning");
+            button.setOnClickListener(new View.OnClickListener()
+            {
+                @Override
+                public void onClick(View v)
+                {
+                    stopRecognitionSession();
+                }
+            });
+        }
+
+
+    }
+    private void stopRecognitionSession() {
+        if (recognizer != null) {
+            recognizer.unregisterCallback(transcriptUpdater);
+            networkChecker.unregisterNetworkCallback();
+        }
+        if(audioRecord != null) {
+            audioRecord.stop();
+        }
+        currentlyCaptioning = false;
+        Button button = getActivity().findViewById(R.id.btn_test_captioning);
+        button.setText("Start Captioning");
+        button.setOnClickListener(new View.OnClickListener()
+        {
+            @Override
+            public void onClick(View v)
+            {
+                startRecognitionSession();
+            }
+        });
+
     }
 
 
