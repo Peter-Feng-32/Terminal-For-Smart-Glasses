@@ -116,7 +116,7 @@ dependencies {
     testImplementation "org.robolectric:robolectric:4.4"
     implementation 'com.android.support:multidex:1.0.3'
     implementation "commons-io:commons-io:2.5"
-    implementation "com.google.guava:guava:24.1-jre"
+    implementation "com.google.guava:guava:31.1-jre"
     implementation 'com.google.protobuf:protobuf-java:3.8.0'
     implementation 'com.google.protobuf:protobuf-java-util:3.8.0'
     implementation 'com.google.api.grpc:grpc-google-cloud-speech-v1p1beta1:0.63.0'

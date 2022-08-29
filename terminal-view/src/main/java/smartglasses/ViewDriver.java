@@ -168,4 +168,35 @@ public class ViewDriver {
     }
 
 
+    public void redrawGlassesRows(int topRow, int numRows) {
+
+        updateReferences();
+        //Render delta update bitmap
+        Bitmap bitmap = Bitmap.createBitmap(400, 70 * numRows, Bitmap.Config.ARGB_8888);
+        Canvas toozCanvas = new Canvas(bitmap);
+        mRenderer.renderRowsToTooz(emulator, toozCanvas, topRow, -1,-1,-1,-1, numRows);
+        //Send full bitmap to tooz
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out);
+        byte[] byteArray = out.toByteArray();
+        String s = DriverHelper.bytesToHex(byteArray);
+        frameDriver.sendFullFrame(s);
+    }
+
+    public void clearGlassesView() {
+
+        updateReferences();
+        //Render delta update bitmap
+        Bitmap bitmap = Bitmap.createBitmap(400, 640, Bitmap.Config.ARGB_8888);
+        Canvas toozCanvas = new Canvas(bitmap);
+        //Send full bitmap to tooz
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out);
+        byte[] byteArray = out.toByteArray();
+        String s = DriverHelper.bytesToHex(byteArray);
+        frameDriver.sendFullFrame(s);
+    }
+
+
+
 }

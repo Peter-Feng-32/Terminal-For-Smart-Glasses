@@ -175,7 +175,8 @@ public class CaptioningFragment extends Fragment {
 
 
         //Note: this doesn't update the screen.
-        ((TermuxActivity)getActivity()).getTerminalView().viewDriver.checkAndHandle(((TermuxActivity)getActivity()).getTerminalView().getTopRow());
+        //((TermuxActivity)getActivity()).getTerminalView().viewDriver.checkAndHandle(((TermuxActivity)getActivity()).getTerminalView().getTopRow());
+        ((TermuxActivity)getActivity()).getTerminalView().viewDriver.redrawGlassesRows(((TermuxActivity)getActivity()).getTerminalView().getTopRow(), 2);
         ((TermuxActivity)getActivity()).getTerminalView().invalidate();
     }
 
@@ -300,7 +301,7 @@ public class CaptioningFragment extends Fragment {
                 .build();
         networkChecker = new NetworkConnectionChecker(getActivity());
         networkChecker.registerNetworkCallback();
-
+        Log.w("API Key", getApiKey(getActivity()));
         // There are lots of options for formatting the text. These can be useful for debugging
         // and visualization, but it increases the effort of reading the transcripts.
         TranscriptionResultFormatterOptions formatterOptions =
@@ -346,6 +347,7 @@ public class CaptioningFragment extends Fragment {
             constructRepeatingRecognitionSession();
             startRecording();
             currentlyCaptioning = true;
+            ((TermuxActivity)getActivity()).getTerminalView().viewDriver.clearGlassesView();
             Button button = getActivity().findViewById(R.id.btn_test_captioning);
             button.setText("Stop Captioning");
             button.setOnClickListener(new View.OnClickListener()
