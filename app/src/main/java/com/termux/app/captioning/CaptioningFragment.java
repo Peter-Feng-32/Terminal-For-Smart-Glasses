@@ -91,7 +91,7 @@ public class CaptioningFragment extends Fragment {
     // that RepeatingRecognitionSession inherits from SampleProcessorInterface.
     private RepeatingRecognitionSession recognizer;
     private NetworkConnectionChecker networkChecker;
-
+    private CloudSpeechSessionFactory factory;
 
     //My start-stop implementation
     private boolean currentlyCaptioning = false;
@@ -184,6 +184,7 @@ public class CaptioningFragment extends Fragment {
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
         // Inflate the layout for this fragment
+        Log.w("ONCREATEVIEW", "CREATED");
         View view = inflater.inflate(R.layout.fragment_captioning, container, false);
 
         apiKeyEditView = view.findViewById(R.id.captioning_api_key_input);
@@ -212,7 +213,7 @@ public class CaptioningFragment extends Fragment {
     public void onStop() {
         super.onStop();
         if(currentlyCaptioning) {
-            stopRecognitionSession();
+            pauseRecognitionSession();
             Log.w("CaptioningFragment", "Paused Captioning");
             pausedCaptioning = true;
         }
@@ -231,9 +232,14 @@ public class CaptioningFragment extends Fragment {
     @Override
     public void onDestroy() {
         super.onDestroy();
+        Log.w("ONDESTROY", "DESTROYED");
         if (recognizer != null) {
             recognizer.unregisterCallback(transcriptUpdater);
             networkChecker.unregisterNetworkCallback();
+        }
+
+        if(factory != null) {
+            factory.cleanup();
         }
     }
 
@@ -252,13 +258,13 @@ public class CaptioningFragment extends Fragment {
                     startRecording();
                     currentlyCaptioning = true;
                     Button button = getActivity().findViewById(R.id.btn_test_captioning);
-                    button.setText("Stop Captioning");
+                    button.setText("Pause Captioning");
                     button.setOnClickListener(new View.OnClickListener()
                     {
                         @Override
                         public void onClick(View v)
                         {
-                            stopRecognitionSession();
+                            pauseRecognitionSession();
                         }
                     });
                 } else {
@@ -308,9 +314,10 @@ public class CaptioningFragment extends Fragment {
             TranscriptionResultFormatterOptions.newBuilder()
                 .setTranscriptColoringStyle(NO_COLORING)
                 .build();
+        factory = new CloudSpeechSessionFactory(cloudParams, getApiKey(getActivity()));
         RepeatingRecognitionSession.Builder recognizerBuilder =
             RepeatingRecognitionSession.newBuilder()
-                .setSpeechSessionFactory(new CloudSpeechSessionFactory(cloudParams, getApiKey(getActivity())))
+                .setSpeechSessionFactory(factory)
                 .setSampleRateHz(SAMPLE_RATE)
                 .setTranscriptionResultFormatter(new SafeTranscriptionResultFormatter(formatterOptions))
                 .setSpeechRecognitionModelOptions(options)
@@ -349,39 +356,51 @@ public class CaptioningFragment extends Fragment {
             currentlyCaptioning = true;
             ((TermuxActivity)getActivity()).getTerminalView().viewDriver.clearGlassesView();
             Button button = getActivity().findViewById(R.id.btn_test_captioning);
-            button.setText("Stop Captioning");
+            button.setText("Pause Captioning");
             button.setOnClickListener(new View.OnClickListener()
             {
                 @Override
                 public void onClick(View v)
                 {
-                    stopRecognitionSession();
+                    pauseRecognitionSession();
                 }
             });
         }
 
 
     }
-    private void stopRecognitionSession() {
-        if (recognizer != null) {
-            recognizer.unregisterCallback(transcriptUpdater);
-            networkChecker.unregisterNetworkCallback();
-        }
+    private void pauseRecognitionSession() {
         if(audioRecord != null) {
             audioRecord.stop();
         }
         currentlyCaptioning = false;
         Button button = getActivity().findViewById(R.id.btn_test_captioning);
-        button.setText("Start Captioning");
+        button.setText("Resume Captioning");
         button.setOnClickListener(new View.OnClickListener()
         {
             @Override
             public void onClick(View v)
             {
-                startRecognitionSession();
+                resumeRecognitionSession();
             }
         });
+    }
 
+    private void resumeRecognitionSession() {
+        if(audioRecord != null) {
+            startRecording();
+        }
+        currentlyCaptioning = true;
+        Button button = getActivity().findViewById(R.id.btn_test_captioning);
+        button.setText("Pause Captioning");
+        button.setOnClickListener(new View.OnClickListener()
+        {
+            @Override
+            public void onClick(View v)
+            {
+                pauseRecognitionSession();
+            }
+        });
     }
 
 
