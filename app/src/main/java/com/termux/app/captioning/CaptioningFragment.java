@@ -58,6 +58,7 @@ import com.google.audio.asr.TranscriptionResultUpdatePublisher.ResultSource;
 import com.google.audio.asr.cloud.CloudSpeechSessionFactory;
 
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 
 
 /**
@@ -98,19 +99,23 @@ public class CaptioningFragment extends Fragment {
     private boolean pausedCaptioning = false;
     private TextView apiKeyEditView;
 
+    private TranscriptionResultUpdatePublisher.UpdateType prevUpdateType;
+
     private final TranscriptionResultUpdatePublisher transcriptUpdater =
         (formattedTranscript, updateType) -> {
             getActivity().runOnUiThread(
                 () -> {
 
-                    Log.w("Captioning Fragment", "transcriptUpdater");
-
                     if(updateType == TranscriptionResultUpdatePublisher.UpdateType.TRANSCRIPT_UPDATED) {
-                        testCaptioning(formattedTranscript.toString());
-
+                        if(prevUpdateType == TranscriptionResultUpdatePublisher.UpdateType.TRANSCRIPT_FINALIZED) {
+                            ((TermuxActivity)getActivity()).getTerminalView().viewDriver.clearGlassesView();
+                            prevUpdateType = null;
+                        }
+                        caption(formattedTranscript.toString());
                     }
                      if(updateType == TranscriptionResultUpdatePublisher.UpdateType.TRANSCRIPT_FINALIZED) {
                          recognizer.resetAndClearTranscript();
+                         prevUpdateType = TranscriptionResultUpdatePublisher.UpdateType.TRANSCRIPT_FINALIZED;
                      }
                 });
         };
@@ -153,30 +158,75 @@ public class CaptioningFragment extends Fragment {
         initLanguageLocale();
     }
 
-    public void testCaptioning(String caption) {
-        TerminalBuffer buffer = ((TermuxActivity)getActivity()).getTerminalView().mEmulator.getScreen();
-
+    public void caption(String caption) {
         String escapeSeq = "\033[2J\033[H"; //Clear screen and move cursor to top left.
         ((TermuxActivity)getActivity()).getTerminalView().mEmulator.append(escapeSeq.getBytes(), escapeSeq.length());
-        //Let's write only 35 characters.
-        final int MAX_LENGTH_TO_WRITE = 35;
-        String startWord;
+        //Let's write only 3 rows.
+        final int NUM_ROWS = 3;
+        int ROW_LENGTH = ((TermuxActivity)getActivity()).getTerminalView().mEmulator.mColumns;
+        final int MAX_LENGTH_TO_WRITE = ROW_LENGTH * (NUM_ROWS - 1);
+
+        String captionSubstring;
         if(caption.length() < MAX_LENGTH_TO_WRITE) {
-            startWord = caption;
+            captionSubstring = caption;
         } else {
             int i = caption.length() - MAX_LENGTH_TO_WRITE;
             while(caption.getBytes(StandardCharsets.UTF_8)[i] != ' ') {
                 i++;
             }
-            startWord = caption.substring(i);
+            captionSubstring = caption.substring(i);
         }
+        //Get only enough words to fit on 3 lines.
+        //Split substring into words
+        String[] splited = captionSubstring.split(" ");
+        ArrayList<String> toSendArray = new ArrayList<>();
+        int numCharsWritten = 0;
+        int numCharsWrittenInRow = 0;
+        int currIndex = 0;
+        while(currIndex < splited.length && numCharsWritten < MAX_LENGTH_TO_WRITE) {
+            String currWord = splited[currIndex];
+            if(currWord.length() > ROW_LENGTH) {
+                //If the word is bigger than a row, just send it.
+                toSendArray.add(currWord);
+                numCharsWritten += currWord.length();
+                numCharsWrittenInRow = (numCharsWrittenInRow + currWord.length()) % ROW_LENGTH;
+                if(numCharsWrittenInRow % ROW_LENGTH != 0) {
+                    toSendArray.add(" ");
+                    numCharsWrittenInRow = (numCharsWrittenInRow + 1) % ROW_LENGTH;
+                    numCharsWritten++;
+                }
+            } else {
+                int numCharsRemainingInRow = ROW_LENGTH - numCharsWrittenInRow;
+                if(currWord.length() > numCharsRemainingInRow) {
+                    //Move to next row.
+                    String spaces = "";
+                    for(int i = 0; i < numCharsRemainingInRow; i++) {
+                        spaces = spaces + " ";
+                        numCharsWritten++;
+                    }
+                    toSendArray.add(spaces);
+                    numCharsWrittenInRow = 0;
+                }
+                toSendArray.add(currWord);
+                numCharsWritten += currWord.length();
+                numCharsWrittenInRow = (numCharsWrittenInRow + currWord.length()) % ROW_LENGTH;
+                if(numCharsWrittenInRow % ROW_LENGTH != 0) {
+                    toSendArray.add(" ");
+                    numCharsWrittenInRow = (numCharsWrittenInRow + 1) % ROW_LENGTH;
+                    numCharsWritten++;
+                }
+            }
+            currIndex++;
+        }
+        for(int i = 0; i < toSendArray.size(); i++) {
+            String toSend = toSendArray.get(i);
+            ((TermuxActivity)getActivity()).getTerminalView().mEmulator.append(toSend.getBytes(StandardCharsets.UTF_8),toSend.getBytes(StandardCharsets.UTF_8).length);
 
-        ((TermuxActivity)getActivity()).getTerminalView().mEmulator.append(startWord.getBytes(StandardCharsets.UTF_8),startWord.getBytes(StandardCharsets.UTF_8).length);
-
+        }
+        //Send 1 row if toSend takes up 1 row, send 2 if it takes up 2, send 3 if it takes up 3...
+        ((TermuxActivity)getActivity()).getTerminalView().viewDriver.redrawGlassesRows(((TermuxActivity)getActivity()).getTerminalView().getTopRow(), NUM_ROWS);
 
         //Note: this doesn't update the screen.
-        //((TermuxActivity)getActivity()).getTerminalView().viewDriver.checkAndHandle(((TermuxActivity)getActivity()).getTerminalView().getTopRow());
-        ((TermuxActivity)getActivity()).getTerminalView().viewDriver.redrawGlassesRows(((TermuxActivity)getActivity()).getTerminalView().getTopRow(), 2);
         ((TermuxActivity)getActivity()).getTerminalView().invalidate();
     }
 
@@ -212,6 +262,16 @@ public class CaptioningFragment extends Fragment {
     @Override
     public void onStop() {
         super.onStop();
+        if(currentlyCaptioning) {
+            pauseRecognitionSession();
+            Log.w("CaptioningFragment", "Stopped Captioning");
+            pausedCaptioning = true;
+        }
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
         if(currentlyCaptioning) {
             pauseRecognitionSession();
             Log.w("CaptioningFragment", "Paused Captioning");

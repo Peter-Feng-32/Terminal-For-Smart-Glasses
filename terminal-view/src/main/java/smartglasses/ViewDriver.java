@@ -135,7 +135,6 @@ public class ViewDriver {
     }
 
     public void redrawGlassesDelta(int row, int col, int cursor, int topRow) {
-
         updateReferences();
         //Render delta update bitmap
         Bitmap mySmallBitmap = Bitmap.createBitmap(19, 59, Bitmap.Config.ARGB_8888);
@@ -167,12 +166,10 @@ public class ViewDriver {
         }
     }
 
-
     public void redrawGlassesRows(int topRow, int numRows) {
-
         updateReferences();
         //Render delta update bitmap
-        Bitmap bitmap = Bitmap.createBitmap(400, 70 * numRows, Bitmap.Config.ARGB_8888);
+        Bitmap bitmap = Bitmap.createBitmap(400, 66 * numRows, Bitmap.Config.ARGB_8888);
         Canvas toozCanvas = new Canvas(bitmap);
         mRenderer.renderRowsToTooz(emulator, toozCanvas, topRow, -1,-1,-1,-1, numRows);
         //Send full bitmap to tooz
@@ -184,7 +181,6 @@ public class ViewDriver {
     }
 
     public void clearGlassesView() {
-
         updateReferences();
         //Render delta update bitmap
         Bitmap bitmap = Bitmap.createBitmap(400, 640, Bitmap.Config.ARGB_8888);
@@ -196,7 +192,5 @@ public class ViewDriver {
         String s = DriverHelper.bytesToHex(byteArray);
         frameDriver.sendFullFrame(s);
     }
-
-
 
 }
