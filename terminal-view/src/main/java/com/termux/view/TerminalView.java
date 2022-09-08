@@ -986,10 +986,16 @@ public final class TerminalView extends View {
      * This is called during layout when the size of this view has changed. If you were just added to the view
      * hierarchy, you're called with the old values of 0.
      */
+
+
     @Override
     protected void onSizeChanged(int w, int h, int oldw, int oldh) {
         updateSize();
     }
+
+    /** TODO: Figure out a more elegant solution for sizing. Also figure out where to set the font size to make this 18x10 instead of keeping the small font.
+     *  For now to make the glasses work I will just hardcode it.*/
+
 
     /** Check if the terminal size in rows and columns should be updated. */
     public void updateSize() {
@@ -998,8 +1004,11 @@ public final class TerminalView extends View {
         if (viewWidth == 0 || viewHeight == 0 || mTermSession == null) return;
 
         // Set to 80 and 24 if you want to enable vttest.
-        int newColumns = Math.max(4, (int) (viewWidth / mRenderer.mFontWidth));
-        int newRows = Math.max(4, (viewHeight - mRenderer.mFontLineSpacingAndAscent) / mRenderer.mFontLineSpacing);
+        //int newColumns = Math.max(4, (int) (viewWidth / mRenderer.mFontWidth));
+        //int newRows = Math.max(4, (viewHeight - mRenderer.mFontLineSpacingAndAscent) / mRenderer.mFontLineSpacing);
+        int newColumns = 18;
+        int newRows = 10;
+
 
         if (mEmulator == null || (newColumns != mEmulator.mColumns || newRows != mEmulator.mRows)) {
             mTermSession.updateSize(newColumns, newRows);

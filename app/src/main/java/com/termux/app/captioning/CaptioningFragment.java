@@ -129,8 +129,7 @@ public class CaptioningFragment extends Fragment {
             recognizer.init(CHUNK_SIZE_SAMPLES);
             while (audioRecord.getRecordingState() == AudioRecord.RECORDSTATE_RECORDING) {
                 audioRecord.read(buffer, 0, CHUNK_SIZE_SAMPLES * BYTES_PER_SAMPLE);
-                if(audioRecord.getRecordingState() == AudioRecord.RECORDSTATE_RECORDING)
-                    recognizer.processAudioBytes(buffer);
+                recognizer.processAudioBytes(buffer);
             }
             recognizer.stop();
         };

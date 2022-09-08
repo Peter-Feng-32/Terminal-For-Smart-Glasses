@@ -145,6 +145,10 @@ public class FrameDriver {
                 //Maybe send this data to all device classes 1048(AUDIO_VIDEO_HEADPHONES)?
                 if(deviceName.length() >= 4 && deviceName.substring(0, 4).equals("tooz")) {
                     if(connectThread == null || connectThread.getState() == Thread.State.TERMINATED){
+                        if(device.getUuids() == null) {
+                            Log.w("deviceName", "" + deviceName);
+                            continue;
+                        }
                         connectThread = new ConnectThread(device,  device.getUuids()[0].getUuid().toString(), true);
                         Log.w("Log", "Trying to connect to device address: " + deviceHardwareAddress + "using UUID: " + device.getUuids()[0].getUuid().toString());
                         connectThread.start();
