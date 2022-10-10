@@ -111,7 +111,7 @@ android {
 }
 
 dependencies {
-    implementation files('/Users/Peter/AndroidStudioProjects/termux-app/transcribelib.aar')
+    implementation files('../transcribelib.aar')
     testImplementation "junit:junit:4.13.2"
     testImplementation "org.robolectric:robolectric:4.4"
     implementation 'com.android.support:multidex:1.0.3'
