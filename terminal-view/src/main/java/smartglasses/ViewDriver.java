@@ -17,6 +17,9 @@ import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 
 import java.util.ArrayList;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 public class ViewDriver {
     TerminalRendererTooz mRenderer;
@@ -24,6 +27,26 @@ public class ViewDriver {
     TerminalView view;
     TerminalEmulator emulator;
     TerminalBuffer buffer;
+    int currTopRow;
+    int fullFramesSentProcessing = 0;
+    final int MAX_FRAMES_PROCESSING = 3;
+    final int FRAME_PROCESSING_TIME = 1500;
+    //I think we need to keep track of the time between the current frame and the first frame.
+    boolean frameDropped = false;
+    long lastFrameProcessedTime = -1;
+
+    ScheduledExecutorService scheduledExecutorService = Executors.newScheduledThreadPool(MAX_FRAMES_PROCESSING + 1);
+    Runnable processFrame = () -> {
+        fullFramesSentProcessing--;
+        if(fullFramesSentProcessing == MAX_FRAMES_PROCESSING - 1) {
+            if(frameDropped) {
+                frameDropped = false;
+                checkAndHandle(currTopRow);
+            }
+        }
+        lastFrameProcessedTime = System.currentTimeMillis();
+    };
+
 
     /**
      *
@@ -36,7 +59,6 @@ public class ViewDriver {
 
     public ViewDriver(TerminalView view, TerminalRendererTooz renderer, Context context) {
         this.frameDriver = new FrameDriver(context);
-
         this.mRenderer = renderer;
         this.view = view;
         this.emulator = view.mEmulator;
@@ -89,12 +111,20 @@ public class ViewDriver {
         return diffCoords;
     }
 
-    public void checkAndHandle(int topRow) {
+    public synchronized void checkAndHandle(int topRow) {
+        currTopRow = topRow;
+        Log.w("ScheduleProcessFullFrame", "CheckAndHandle");
+        if(fullFramesSentProcessing == MAX_FRAMES_PROCESSING) {
+            //Log.w("ViewDriver", "FRAME DROPPED");
+            frameDropped = true;
+            return;
+        }
+
         updateReferences();
         updateBuffers();
 
         int diffChars = countDiffChars();
-        Log.w("TopRow DiffChars", "" + topRow + " " + diffChars);
+        //Log.w("TopRow DiffChars", "" + topRow + " " + diffChars);
         //if only 1 character change, draw that single character.
         if(diffChars == -1) return;
         if(diffChars == 0) {
@@ -120,8 +150,19 @@ public class ViewDriver {
         //Check if the cursor position changed and redraw the old+new cursor positions.
     }
 
+    public void scheduleProcessFullFrame() {
+        if(fullFramesSentProcessing == 0) {
+            lastFrameProcessedTime = System.currentTimeMillis();
+        }
+        int processingDelay = (int) ((fullFramesSentProcessing + 1) * FRAME_PROCESSING_TIME - (System.currentTimeMillis() - lastFrameProcessedTime));
+        scheduledExecutorService.schedule(processFrame, processingDelay, TimeUnit.MILLISECONDS);
+        fullFramesSentProcessing++;
+        Log.w("ScheduleProcessFullFrame", "Done scheduling " + fullFramesSentProcessing + ' ' + processingDelay);
+    }
+
     public void redrawGlassesFull(int topRow) {
         updateReferences();
+        scheduleProcessFullFrame();
         //Render full bitmap
         Bitmap bitmap = Bitmap.createBitmap(400, 640, Bitmap.Config.ARGB_8888);
         Canvas toozCanvas = new Canvas(bitmap);
@@ -144,26 +185,22 @@ public class ViewDriver {
         }
 
         char charToRender = emulator.getScreen().getmLines()[emulator.getScreen().externalToInternalRow(row)].getmText()[col];
-        Log.w("charToRender", "" + charToRender + " " + row + ' ' + col);
+        //Log.w("charToRender", "" + charToRender + " " + row + ' ' + col);
         mRenderer.renderToToozSingleChar(emulator, mySmallToozCanvas, topRow, -1,-1,-1,-1, charToRender, cursor, row, col);
         //Send delta update bitmap to Tooz
         ByteArrayOutputStream mySmallOut = new ByteArrayOutputStream();
         mySmallBitmap.compress(Bitmap.CompressFormat.JPEG, 90, mySmallOut);
         byte[] mySmallByteArray = mySmallOut.toByteArray();
         String mySmallS = DriverHelper.bytesToHex(mySmallByteArray);
-        Log.w("Small Size", String.valueOf(mySmallBitmap.getWidth()));
-        Log.w("Col", ""+col);
-        Log.w("Row", "" + row);
+        //Log.w("Small Size", String.valueOf(mySmallBitmap.getWidth()));
+        //Log.w("Col", ""+col);
+        //Log.w("Row", "" + row);
         int cellX = (int) mRenderer.getWidthBeforeTooz(emulator, topRow, col, row);
         int cellY = (int) mRenderer.getHeightBeforeTooz(emulator, topRow, row);
-        Log.w("Cell X", "" + cellX);
-        Log.w("Cell Y", "" + cellY);
-        Log.w("Bitmap Size", "X: " + mySmallBitmap.getWidth() + " Y: " + mySmallBitmap.getHeight());
+        //Log.w("Cell X", "" + cellX);
+        //Log.w("Cell Y", "" + cellY);
+        //Log.w("Bitmap Size", "X: " + mySmallBitmap.getWidth() + " Y: " + mySmallBitmap.getHeight());
         boolean connected = frameDriver.sendFrameDelta(mySmallS, cellX + TerminalRenderer.leftOffsetTooz-3, cellY);
-        if(!connected) {
-            //Not connected.  Can't send delta update.  Send entire terminal screen.
-            redrawGlassesFull(topRow);
-        }
     }
 
     public void redrawGlassesRows(int topRow, int numRows) {

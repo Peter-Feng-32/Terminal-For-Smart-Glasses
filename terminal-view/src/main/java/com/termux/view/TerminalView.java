@@ -1057,6 +1057,9 @@ public final class TerminalView extends View {
         // render the terminal view and highlight any selected text
         //viewDriver.redrawGlassesFull();
         viewDriver.checkAndHandle(mTopRow);
+
+        //How to prevent disconnects from sending too many frames at once?
+        //When we send too many frames add a lockout to stop sending for x seconds?
 /*
         int[] sel = mDefaultSelectors;
         if (mTextSelectionCursorController != null) {

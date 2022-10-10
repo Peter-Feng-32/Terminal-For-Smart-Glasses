@@ -24,13 +24,11 @@ public class FrameDriver {
     ConnectThread connectThread;
     BluetoothSocket connectionSocket;
     BluetoothAdapter bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
-
+    boolean searching = false;
     String UUID0= "00001101-0000-1000-8000-00805f9b34fb";
     public String MY_UUID = UUID0;
     int framesSent = 0;
     String currFrame;
-
-    boolean brokenPipe = false;
 
     public FrameDriver(Context context){
         if(bluetoothAdapter==null) {
@@ -41,18 +39,12 @@ public class FrameDriver {
 
     public void sendFullFrame(String imageHexString) {
         //Connection code - see if we can optimize this later.
-        if(!isConnected() || brokenPipe) {
+        if(!isConnected()) {
             currFrame = imageHexString;
-            searchAndConnect(MY_UUID);
-            brokenPipe = false;
-            if(isConnected()){
-                sendFullFrame(imageHexString);
-            } else {
-                if (!isConnected()) {
-                    searchAndConnect(MY_UUID);
-                }
-            }
-        } else {
+            if (!searching) searchAndConnect(MY_UUID);
+        }
+        if(isConnected())
+        {
             FrameBlock frameBlock = new FrameBlock(framesSent++);
             byte[] headerBytes = generateHeader(imageHexString, frameBlock);
             byte[] frameIDBlockBytes = frameBlock.serialize();
@@ -62,19 +54,31 @@ public class FrameDriver {
             byteStream = ArrayUtils.addAll(byteStream, imageBytes);
             byteStream = ArrayUtils.addAll(byteStream, ending);
 
-            try {
-                if (connectionOutputStream != null) {
-                    connectionOutputStream.write(byteStream);
-                    Log.w("Sent Data", "Sent sendBuffer successfully");
-                } else {
-                    Log.w("Connection", "Not connected, can't send data.");
-                }
-            } catch (IOException e) {
-                Log.w("Exception", "test");
-                e.printStackTrace();
-                brokenPipe = true;
-                sendFullFrame(imageHexString);
-            }
+            byte[] finalByteStream = byteStream;
+            Thread t1 = new Thread(new Runnable() {
+                public void run()
+                {
+                    try {
+                        if (connectionOutputStream != null) {
+                            connectionOutputStream.write(finalByteStream);
+                            //Log.w("Sent Data", "Sent sendBuffer successfully");
+                            //Log.w("Image", imageHexString);
+                            framesSent++;
+                        } else {
+                            Log.w("Connection", "Not connected, can't send data.");
+                        }
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                        try {
+                            connectionOutputStream.close();
+                        } catch (IOException ioException) {
+                            ioException.printStackTrace();
+                        }
+                        if(!searching) searchAndConnect(MY_UUID);
+                        return;
+                    }
+                }});
+            t1.start();
         }
     }
 
@@ -94,19 +98,48 @@ public class FrameDriver {
             byteStream = ArrayUtils.addAll(byteStream, imageBytes);
             byteStream = ArrayUtils.addAll(byteStream, ending);
 
+            byte[] finalByteStream = byteStream;
+            Thread t1 = new Thread(new Runnable() {
+                 public void run()
+                {
+                    try {
+                        if (connectionOutputStream != null) {
+                            connectionOutputStream.write(finalByteStream);
+                            //Log.w("Sent Data", "Sent sendBuffer successfully");
+                            //Log.w("Image", imageHexString);
+                            framesSent++;
+                        } else {
+                            Log.w("Connection", "Not connected, can't send data.");
+                        }
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                        try {
+                            connectionOutputStream.close();
+                        } catch (IOException ioException) {
+                            ioException.printStackTrace();
+                        }
+                        if(!searching) searchAndConnect(MY_UUID);
+                        return;
+                    }
+                }});
+            t1.start();
+/*
             try {
                 if (connectionOutputStream != null) {
                     connectionOutputStream.write(byteStream);
-                    Log.w("Sent Data", "Sent sendBuffer successfully");
-                    Log.w("Image", imageHexString);
+                    //Log.w("Sent Data", "Sent sendBuffer successfully");
+                    //Log.w("Image", imageHexString);
                     framesSent++;
                 } else {
                     Log.w("Connection", "Not connected, can't send data.");
                 }
             } catch (IOException e) {
                 e.printStackTrace();
-                searchAndConnect(MY_UUID);
-            }
+                if(!searching) searchAndConnect(MY_UUID);
+                return false;
+            }*/
+
+
             return true;
         }
     }
@@ -131,7 +164,8 @@ public class FrameDriver {
         return header;
     }
 
-    protected void searchAndConnect(String str_UUID) {
+    synchronized protected void searchAndConnect(String str_UUID) {
+        searching = true;
         Set<BluetoothDevice> pairedDevices = bluetoothAdapter.getBondedDevices();
         if (pairedDevices.size() > 0) {
             // There are paired devices. Get the name and address of each paired device.
@@ -156,29 +190,7 @@ public class FrameDriver {
                 }
             }
         }
-    }
-
-    protected void searchAndConnectAgain(String str_UUID) {
-        Set<BluetoothDevice> pairedDevices = bluetoothAdapter.getBondedDevices();
-        if (pairedDevices.size() > 0) {
-            // There are paired devices. Get the name and address of each paired device.
-            for (BluetoothDevice device : pairedDevices) {
-                String deviceName = device.getName();
-                String deviceHardwareAddress = device.getAddress(); // MAC address
-                Log.w("Device Class", String.valueOf(device.getBluetoothClass().getDeviceClass()));
-
-                //Temporary solution until I can figure out how to save devices and have a pairing scheme.
-                //Just check if device name starts with tooz.
-                //Maybe send this data to all device classes 1048(AUDIO_VIDEO_HEADPHONES)?
-                if(deviceName.length() >= 4 && deviceName.substring(0, 4).equals("tooz")) {
-                    if(connectThread == null || connectThread.getState() == Thread.State.TERMINATED){
-                        connectThread = new ConnectThread(device,  device.getUuids()[0].getUuid().toString(), false);
-                        Log.w("Log", "Trying to connect to device address: " + deviceHardwareAddress + "using UUID: " + device.getUuids()[0].getUuid().toString());
-                        connectThread.start();
-                    }
-                }
-            }
-        }
+        searching = false;
     }
 
     public boolean isConnected() {
@@ -227,7 +239,6 @@ public class FrameDriver {
                     Log.e("Exception", e2.toString());
 
                 }
-                if(againIfFail) searchAndConnectAgain(myUUID);
                 return;
             }
 

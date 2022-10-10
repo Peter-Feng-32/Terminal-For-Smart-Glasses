@@ -139,8 +139,6 @@ public final class TerminalSession extends TerminalOutput {
                     while (true) {
                         int read = termIn.read(buffer);
                         if (read == -1) return;
-                        for(int i = 0; i < read; i++)
-                            Log.w("TermSessionInputReader", String.valueOf(buffer[i]));
                         if (!mProcessToTerminalIOQueue.write(buffer, 0, read)) return;
                         mMainThreadHandler.sendEmptyMessage(MSG_NEW_INPUT);
                     }
@@ -355,10 +353,10 @@ public final class TerminalSession extends TerminalOutput {
 
             if (bytesRead > 0) {
                 mEmulator.append(mReceiveBuffer, bytesRead, changes);
-                Log.w("Changes", "override: " + changes.overrideChangeScreen + " " + changes.details);
-                Log.w("Changes", "Num code points emitted: " + changes.codePointsEmitted);
-                Log.w("Changes", "Cursor start position: Column: " + changes.cursorPrevCol + " Row: " + changes.cursorPrevRow);
-                Log.w("Changes", "Cursor end position: Column: " + changes.cursorCurrCol + " Row: " + changes.cursorCurrRow);
+                //Log.w("Changes", "override: " + changes.overrideChangeScreen + " " + changes.details);
+                //Log.w("Changes", "Num code points emitted: " + changes.codePointsEmitted);
+                //Log.w("Changes", "Cursor start position: Column: " + changes.cursorPrevCol + " Row: " + changes.cursorPrevRow);
+                //Log.w("Changes", "Cursor end position: Column: " + changes.cursorCurrCol + " Row: " + changes.cursorCurrRow);
                 notifyScreenUpdate(changes);
             }
 

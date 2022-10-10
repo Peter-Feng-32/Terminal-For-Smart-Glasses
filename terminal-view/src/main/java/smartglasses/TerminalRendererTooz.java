@@ -96,7 +96,7 @@ public class TerminalRendererTooz {
         final int[] palette = mEmulator.mColors.mCurrentColors;
         final int cursorShape = mEmulator.getCursorStyle();
 
-        Log.w("RENDER TOPROW", "" + topRow);
+        //Log.w("RENDER TOPROW", "" + topRow);
 
         if (reverseVideo)
             canvas.drawColor(palette[TextStyle.COLOR_INDEX_FOREGROUND], PorterDuff.Mode.SRC);
@@ -774,7 +774,7 @@ public class TerminalRendererTooz {
         int experimentalOffsetForSingleCharacter = 6;
         float left = startColumn * mFontWidthTooz + experimentalOffsetForSingleCharacter;
         float right = left + runWidthColumns * mFontWidthTooz;
-        Log.w("Left 1", ""+left);
+        //Log.w("Left 1", ""+left);
         mes = mes / mFontWidthTooz;
         boolean savedMatrix = false;
         /**
@@ -792,7 +792,7 @@ public class TerminalRendererTooz {
             right *= mes / runWidthColumns;
             savedMatrix = true;
         }
-        Log.w("Left 2", ""+left);
+        //Log.w("Left 2", ""+left);
 
         if (backColor != palette[TextStyle.COLOR_INDEX_BACKGROUND]) {
             // Only draw non-default background.
@@ -805,10 +805,10 @@ public class TerminalRendererTooz {
             float cursorHeight = mFontLineSpacingAndAscentTooz - mFontAscentTooz;
             if (cursorStyle == TerminalEmulator.TERMINAL_CURSOR_STYLE_UNDERLINE) cursorHeight /= 4.;
             else if (cursorStyle == TerminalEmulator.TERMINAL_CURSOR_STYLE_BAR) right -= ((right - left) * 3) / 4.;
-            Log.w("Drawing Cursor", "Test");
+            //Log.w("Drawing Cursor", "Test");
             //canvas.drawRect(0, 0, right, y, mTextPaintTooz);
         }
-        Log.w("Left 3", ""+left);
+        //Log.w("Left 3", ""+left);
 
         if ((effect & TextStyle.CHARACTER_ATTRIBUTE_INVISIBLE) == 0) {
             if (dim) {
