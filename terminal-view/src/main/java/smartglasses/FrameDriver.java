@@ -17,8 +17,6 @@ import java.util.Set;
 import java.util.UUID;
 
 public class FrameDriver {
-    Context context;
-
     InputStream connectionInputStream;
     OutputStream connectionOutputStream;
     ConnectThread connectThread;
@@ -30,11 +28,19 @@ public class FrameDriver {
     int framesSent = 0;
     String currFrame;
 
-    public FrameDriver(Context context){
+    private static FrameDriver frameDriver;
+
+    public FrameDriver(){
         if(bluetoothAdapter==null) {
             Log.w("Error", "Device doesn't support Bluetooth");
         }
-        this.context = context;
+    }
+
+    public static FrameDriver getInstance() {
+        if(frameDriver == null) {
+            frameDriver = new FrameDriver();
+        }
+        return frameDriver;
     }
 
     public void sendFullFrame(String imageHexString) {

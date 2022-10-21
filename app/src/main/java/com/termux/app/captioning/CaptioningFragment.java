@@ -1,5 +1,6 @@
 package com.termux.app.captioning;
 
+import android.content.Intent;
 import android.os.Bundle;
 import androidx.fragment.app.Fragment;
 
@@ -98,6 +99,7 @@ public class CaptioningFragment extends Fragment {
     private boolean currentlyCaptioning = false;
     private boolean pausedCaptioning = false;
     private TextView apiKeyEditView;
+    private boolean captioningOn = false;
 
     private TranscriptionResultUpdatePublisher.UpdateType prevUpdateType;
 
@@ -117,6 +119,8 @@ public class CaptioningFragment extends Fragment {
                          recognizer.resetAndClearTranscript();
                          prevUpdateType = TranscriptionResultUpdatePublisher.UpdateType.TRANSCRIPT_FINALIZED;
                      }
+
+
                 });
         };
 
@@ -221,7 +225,6 @@ public class CaptioningFragment extends Fragment {
         for(int i = 0; i < toSendArray.size(); i++) {
             String toSend = toSendArray.get(i);
             ((TermuxActivity)getActivity()).getTerminalView().mEmulator.append(toSend.getBytes(StandardCharsets.UTF_8),toSend.getBytes(StandardCharsets.UTF_8).length);
-
         }
         //Send 1 row if toSend takes up 1 row, send 2 if it takes up 2, send 3 if it takes up 3...
         ((TermuxActivity)getActivity()).getTerminalView().viewDriver.redrawGlassesRows(((TermuxActivity)getActivity()).getTerminalView().getTopRow(), NUM_ROWS);
@@ -245,7 +248,12 @@ public class CaptioningFragment extends Fragment {
             @Override
             public void onClick(View v)
             {
-                startRecognitionSession();
+                Intent captioningIntent = new Intent(getActivity(), CaptioningService.class);
+                getActivity().startService(captioningIntent);
+                toggleButton();
+
+
+                //startRecognitionSession();
             }
         });
 
@@ -256,14 +264,13 @@ public class CaptioningFragment extends Fragment {
     @Override
     public void onStart() {
         super.onStart();
-
     }
 
     @Override
     public void onStop() {
         super.onStop();
         if(currentlyCaptioning) {
-            pauseRecognitionSession();
+            //pauseRecognitionSession();
             Log.w("CaptioningFragment", "Stopped Captioning");
             pausedCaptioning = true;
         }
@@ -273,7 +280,7 @@ public class CaptioningFragment extends Fragment {
     public void onPause() {
         super.onPause();
         if(currentlyCaptioning) {
-            pauseRecognitionSession();
+            //pauseRecognitionSession();
             Log.w("CaptioningFragment", "Paused Captioning");
             pausedCaptioning = true;
         }
@@ -283,7 +290,7 @@ public class CaptioningFragment extends Fragment {
     public void onResume() {
         super.onResume();
         if(pausedCaptioning) {
-            startRecognitionSession();
+            //startRecognitionSession();
             Log.w("CaptioningFragment", "Resumed Captioning");
             pausedCaptioning = false;
         }
@@ -314,7 +321,7 @@ public class CaptioningFragment extends Fragment {
                 // If request is cancelled, the result arrays are empty.
                 if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                     saveApiKey(getActivity(), apiKeyEditView.getText().toString());
-                    constructRepeatingRecognitionSession();
+                    /*constructRepeatingRecognitionSession();
                     startRecording();
                     currentlyCaptioning = true;
                     Button button = getActivity().findViewById(R.id.btn_test_captioning);
@@ -324,9 +331,12 @@ public class CaptioningFragment extends Fragment {
                         @Override
                         public void onClick(View v)
                         {
-                            pauseRecognitionSession();
+                            Intent captioningIntent = new Intent(getActivity(), CaptioningService.class);
+                            getActivity().stopService(captioningIntent);
+                            //pauseRecognitionSession();
                         }
-                    });
+                    });*/
+
                 } else {
                     // This should nag user again if they launch without the permissions.
                     Toast.makeText(
@@ -422,7 +432,9 @@ public class CaptioningFragment extends Fragment {
                 @Override
                 public void onClick(View v)
                 {
-                    pauseRecognitionSession();
+                    Intent captioningIntent = new Intent(getActivity(), CaptioningService.class);
+                    getActivity().stopService(captioningIntent);
+                    //pauseRecognitionSession();
                 }
             });
         }
@@ -441,9 +453,45 @@ public class CaptioningFragment extends Fragment {
             @Override
             public void onClick(View v)
             {
+                Intent captioningIntent = new Intent(getActivity(), CaptioningService.class);
+                getActivity().startService(captioningIntent);
                 resumeRecognitionSession();
             }
         });
+    }
+    private void toggleButton() {
+        if(captioningOn == true) {
+            captioningOn = false;
+            Button button = getActivity().findViewById(R.id.btn_test_captioning);
+            button.setText("Resume Captioning");
+            button.setOnClickListener(new View.OnClickListener()
+            {
+                @Override
+                public void onClick(View v)
+                {
+                    Intent captioningIntent = new Intent(getActivity(), CaptioningService.class);
+                    getActivity().startService(captioningIntent);
+                    toggleButton();
+                    //resumeRecognitionSession();
+                }
+            });
+        } else {
+            captioningOn = true;
+            Button button = getActivity().findViewById(R.id.btn_test_captioning);
+            button.setText("Pause Captioning");
+            button.setOnClickListener(new View.OnClickListener()
+            {
+                @Override
+                public void onClick(View v)
+                {
+                    Intent captioningIntent = new Intent(getActivity(), CaptioningService.class);
+                    getActivity().stopService(captioningIntent);
+                    toggleButton();
+                    //resumeRecognitionSession();
+                }
+            });
+        }
+
     }
 
     private void resumeRecognitionSession() {
@@ -458,7 +506,9 @@ public class CaptioningFragment extends Fragment {
             @Override
             public void onClick(View v)
             {
-                pauseRecognitionSession();
+                Intent captioningIntent = new Intent(getActivity(), CaptioningService.class);
+                getActivity().stopService(captioningIntent);
+                //pauseRecognitionSession();
             }
         });
     }

@@ -87,7 +87,7 @@ public class TermuxTerminalViewClient extends TermuxTerminalViewClientBase {
         Work with a consistent text size for now.
         */
 
-        mActivity.getTerminalView().setTextSize(65);
+        mActivity.getTerminalView().setTextSize(mActivity.getPreferences().getFontSize());
         mActivity.getTerminalView().setKeepScreenOn(mActivity.getPreferences().shouldKeepScreenOn());
     }
 

@@ -16,12 +16,13 @@ import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-public class ViewDriver {
+public class ViewDriver implements Serializable {
     TerminalRendererTooz mRenderer;
     FrameDriver frameDriver;
     TerminalView view;
@@ -29,7 +30,7 @@ public class ViewDriver {
     TerminalBuffer buffer;
     int currTopRow;
     int fullFramesSentProcessing = 0;
-    final int MAX_FRAMES_PROCESSING = 3;
+    final int MAX_FRAMES_PROCESSING = 2;
     final int FRAME_PROCESSING_TIME = 1500;
     //I think we need to keep track of the time between the current frame and the first frame.
     boolean frameDropped = false;
@@ -58,7 +59,7 @@ public class ViewDriver {
     Pair<Integer, Integer> cursorCoordsCurr;
 
     public ViewDriver(TerminalView view, TerminalRendererTooz renderer, Context context) {
-        this.frameDriver = new FrameDriver(context);
+        this.frameDriver = FrameDriver.getInstance();
         this.mRenderer = renderer;
         this.view = view;
         this.emulator = view.mEmulator;

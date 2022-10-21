@@ -166,16 +166,9 @@ public final class TerminalView extends View {
             public boolean onScale(float focusX, float focusY, float scale) {
                 if (mEmulator == null || isSelectingText()) return true;
 
-                /*
-                todo
-                Currently not dealing with resizing the screen because we are sending JPEGs to a pair of smart-glasses.
-                In the future, figure out how to reimplement resizing.
-                 */
-
-                /*
                 mScaleFactor *= scale;
                 mScaleFactor = mClient.onScale(mScaleFactor);
-                */
+
                 return true;
             }
 
@@ -1004,10 +997,10 @@ public final class TerminalView extends View {
         if (viewWidth == 0 || viewHeight == 0 || mTermSession == null) return;
 
         // Set to 80 and 24 if you want to enable vttest.
-        //int newColumns = Math.max(4, (int) (viewWidth / mRenderer.mFontWidth));
-        //int newRows = Math.max(4, (viewHeight - mRenderer.mFontLineSpacingAndAscent) / mRenderer.mFontLineSpacing);
-        int newColumns = 18;
-        int newRows = 10;
+        int newColumns = Math.max(4, (int) (viewWidth / mRenderer.mFontWidth));
+        int newRows = Math.max(4, (viewHeight - mRenderer.mFontLineSpacingAndAscent) / mRenderer.mFontLineSpacing);
+        //int newColumns = 18;
+        //int newRows = 10;
 
 
         if (mEmulator == null || (newColumns != mEmulator.mColumns || newRows != mEmulator.mRows)) {

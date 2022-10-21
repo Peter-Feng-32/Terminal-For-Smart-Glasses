@@ -1003,7 +1003,10 @@ public class TerminalRendererTooz {
             mTextPaintTooz.setUnderlineText(underline);
             mTextPaintTooz.setTextSkewX(italic ? -0.35f : 0.f);
             mTextPaintTooz.setStrikeThruText(strikeThrough);
-            mTextPaintTooz.setColor(foreColor);
+            //mTextPaintTooz.setColor(foreColor);
+            //Todo: test green color.
+            mTextPaintTooz.setColor(0xFF00ff00);
+
 
             // The text alignment is the default Paint.Align.LEFT.
             //Log.w("Draw", "StartIndex: " + startCharIndex + " runWidth" + runWidthChars + " left: " + left +  " text: " + String.valueOf(text));
