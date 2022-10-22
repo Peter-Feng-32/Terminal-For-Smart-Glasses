@@ -106,7 +106,7 @@ public class CaptioningService extends Service {
 
             if(updateType == TranscriptionResultUpdatePublisher.UpdateType.TRANSCRIPT_UPDATED) {
                 if(prevUpdateType == TranscriptionResultUpdatePublisher.UpdateType.TRANSCRIPT_FINALIZED) {
-                    //viewDriver.clearGlassesView();
+                    captionRenderer.clearGlasses();
                     prevUpdateType = null;
                 }
                 Log.w("Caption", formattedTranscript.toString());
@@ -161,6 +161,11 @@ public class CaptioningService extends Service {
         return super.onStartCommand(intent, flags, startId);
     }
 
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        audioRecord.stop();
+    }
 
     /** Captioning Functions */
     private void initLanguageLocale() {

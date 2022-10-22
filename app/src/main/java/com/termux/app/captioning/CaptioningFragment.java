@@ -250,6 +250,8 @@ public class CaptioningFragment extends Fragment {
             {
                 Intent captioningIntent = new Intent(getActivity(), CaptioningService.class);
                 getActivity().startService(captioningIntent);
+
+
                 toggleButton();
 
 
@@ -463,7 +465,7 @@ public class CaptioningFragment extends Fragment {
         if(captioningOn == true) {
             captioningOn = false;
             Button button = getActivity().findViewById(R.id.btn_test_captioning);
-            button.setText("Resume Captioning");
+            button.setText("Resume Captioning!");
             button.setOnClickListener(new View.OnClickListener()
             {
                 @Override
@@ -472,13 +474,14 @@ public class CaptioningFragment extends Fragment {
                     Intent captioningIntent = new Intent(getActivity(), CaptioningService.class);
                     getActivity().startService(captioningIntent);
                     toggleButton();
+                    Log.w("Start", "Service");
                     //resumeRecognitionSession();
                 }
             });
         } else {
             captioningOn = true;
             Button button = getActivity().findViewById(R.id.btn_test_captioning);
-            button.setText("Pause Captioning");
+            button.setText("Pause Captioning!");
             button.setOnClickListener(new View.OnClickListener()
             {
                 @Override
@@ -486,7 +489,10 @@ public class CaptioningFragment extends Fragment {
                 {
                     Intent captioningIntent = new Intent(getActivity(), CaptioningService.class);
                     getActivity().stopService(captioningIntent);
+                    Log.w("Stop", "Service");
+
                     toggleButton();
+
                     //resumeRecognitionSession();
                 }
             });
