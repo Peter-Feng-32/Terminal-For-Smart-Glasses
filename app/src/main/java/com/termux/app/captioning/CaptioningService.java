@@ -1,7 +1,11 @@
 package com.termux.app.captioning;
 
+import android.app.Notification;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Intent;
+import android.os.Build;
 import android.os.IBinder;
 import android.os.Bundle;
 import androidx.fragment.app.Fragment;
@@ -16,6 +20,8 @@ import com.google.audio.CodecAndBitrate;
 import com.google.audio.NetworkConnectionChecker;
 import com.termux.R;
 import com.termux.app.TermuxActivity;
+import com.termux.shared.notification.NotificationUtils;
+import com.termux.shared.termux.TermuxConstants;
 import com.termux.terminal.TerminalBuffer;
 
 
@@ -82,6 +88,8 @@ public class CaptioningService extends Service {
     private static final int CHUNK_SIZE_SAMPLES = 1280;
     private static final int BYTES_PER_SAMPLE = 2;
     private static final String SHARE_PREF_API_KEY = "api_key";
+    private static final String CAPTIONING_NOTIFICATION_CHANNEL_ID = "captioning_notification_channel";
+    private static final String CAPTIONING_NOTIFICATION_CHANNEL_NAME = "Captioning service";
 
     private int currentLanguageCodePosition;
     private String currentLanguageCode;
@@ -151,6 +159,40 @@ public class CaptioningService extends Service {
         // TODO: Return the communication channel to the service.
         return null;
         //throw new UnsupportedOperationException("Not yet implemented");
+    }
+
+    @Override
+    public void onCreate() {
+        super.onCreate();
+        runStartForeground();
+    }
+
+    private void runStartForeground() {
+        setupNotificationChannel();
+        startForeground(TermuxConstants.TERMUX_APP_NOTIFICATION_ID, buildForegroundService());
+    }
+
+    private void setupNotificationChannel() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return;
+        NotificationUtils.setupNotificationChannel(this, CAPTIONING_NOTIFICATION_CHANNEL_ID,
+            CAPTIONING_NOTIFICATION_CHANNEL_NAME, NotificationManager.IMPORTANCE_DEFAULT);
+    }
+
+    private Notification buildForegroundService() {
+        int priority = Notification.PRIORITY_DEFAULT;
+        String notificationText = "Captioning running...";
+        Intent notificationIntent = new Intent(this, TermuxActivity.class);
+        PendingIntent contentIntent = PendingIntent.getActivity(this, 0, notificationIntent, 0);
+        Notification.Builder builder =  NotificationUtils.geNotificationBuilder(this,
+            TermuxConstants.TERMUX_APP_NOTIFICATION_CHANNEL_ID, priority,
+            TermuxConstants.TERMUX_APP_NAME, notificationText, null,
+            contentIntent, null, NotificationUtils.NOTIFICATION_MODE_SILENT);
+        if (builder == null)  return null;
+        builder.setShowWhen(false);
+        builder.setSmallIcon(R.drawable.ic_service_notification);
+        builder.setColor(0xFF607D8B);
+        builder.setOngoing(true);
+        return builder.build();
     }
 
     @Override
