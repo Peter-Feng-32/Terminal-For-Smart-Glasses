@@ -214,6 +214,8 @@ public class FrameToGlasses {
         return header;
     }
 
+
+
     protected void searchAndConnect(String str_UUID) {
         Set<BluetoothDevice> pairedDevices = bluetoothAdapter.getBondedDevices();
         if (pairedDevices.size() > 0) {

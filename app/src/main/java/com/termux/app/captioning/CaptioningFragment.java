@@ -2,6 +2,9 @@ package com.termux.app.captioning;
 
 import android.content.Intent;
 import android.os.Bundle;
+
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.fragment.app.Fragment;
 
 import android.util.Log;
@@ -73,71 +76,13 @@ public class CaptioningFragment extends Fragment {
     /** Captioning Library stuff */
 
     private static final int PERMISSIONS_REQUEST_RECORD_AUDIO = 1;
-
-    private static final int MIC_CHANNELS = AudioFormat.CHANNEL_IN_MONO;
-    private static final int MIC_CHANNEL_ENCODING = AudioFormat.ENCODING_PCM_16BIT;
-    private static final int MIC_SOURCE = MediaRecorder.AudioSource.VOICE_RECOGNITION;
-    private static final int SAMPLE_RATE = 16000;
-    private static final int CHUNK_SIZE_SAMPLES = 1280;
-    private static final int BYTES_PER_SAMPLE = 2;
     private static final String SHARE_PREF_API_KEY = "api_key";
 
     private int currentLanguageCodePosition;
     private String currentLanguageCode;
 
-    private AudioRecord audioRecord;
-    private final byte[] buffer = new byte[BYTES_PER_SAMPLE * CHUNK_SIZE_SAMPLES];
-
-    // This class was intended to be used from a thread where timing is not critical (i.e. do not
-    // call this in a system audio callback). Network calls will be made during all of the functions
-    // that RepeatingRecognitionSession inherits from SampleProcessorInterface.
-    private RepeatingRecognitionSession recognizer;
-    private NetworkConnectionChecker networkChecker;
-    private CloudSpeechSessionFactory factory;
-
-    //My start-stop implementation
-    private boolean currentlyCaptioning = false;
-    private boolean pausedCaptioning = false;
     private TextView apiKeyEditView;
     private boolean captioningOn = false;
-
-    private TranscriptionResultUpdatePublisher.UpdateType prevUpdateType;
-
-    private final TranscriptionResultUpdatePublisher transcriptUpdater =
-        (formattedTranscript, updateType) -> {
-            getActivity().runOnUiThread(
-                () -> {
-
-                    if(updateType == TranscriptionResultUpdatePublisher.UpdateType.TRANSCRIPT_UPDATED) {
-                        if(prevUpdateType == TranscriptionResultUpdatePublisher.UpdateType.TRANSCRIPT_FINALIZED) {
-                            ((TermuxActivity)getActivity()).getTerminalView().viewDriver.clearGlassesView();
-                            prevUpdateType = null;
-                        }
-                        caption(formattedTranscript.toString());
-                    }
-                     if(updateType == TranscriptionResultUpdatePublisher.UpdateType.TRANSCRIPT_FINALIZED) {
-                         recognizer.resetAndClearTranscript();
-                         prevUpdateType = TranscriptionResultUpdatePublisher.UpdateType.TRANSCRIPT_FINALIZED;
-                     }
-
-
-                });
-        };
-
-    private Runnable readMicData =
-        () -> {
-            Log.w("CaptioningFragment", "readMicData");
-            if (audioRecord.getState() != AudioRecord.STATE_INITIALIZED) {
-                return;
-            }
-            recognizer.init(CHUNK_SIZE_SAMPLES);
-            while (audioRecord.getRecordingState() == AudioRecord.RECORDSTATE_RECORDING) {
-                audioRecord.read(buffer, 0, CHUNK_SIZE_SAMPLES * BYTES_PER_SAMPLE);
-                recognizer.processAudioBytes(buffer);
-            }
-            recognizer.stop();
-        };
-
 
     /**
      * Use this factory method to create a new instance of
@@ -162,6 +107,7 @@ public class CaptioningFragment extends Fragment {
         initLanguageLocale();
     }
 
+    /*
     public void caption(String caption) {
         String escapeSeq = "\033[2J\033[H"; //Clear screen and move cursor to top left.
         ((TermuxActivity)getActivity()).getTerminalView().mEmulator.append(escapeSeq.getBytes(), escapeSeq.length());
@@ -232,36 +178,29 @@ public class CaptioningFragment extends Fragment {
         //Note: this doesn't update the screen.
         ((TermuxActivity)getActivity()).getTerminalView().invalidate();
     }
+    */
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
         // Inflate the layout for this fragment
-        Log.w("ONCREATEVIEW", "CREATED");
         View view = inflater.inflate(R.layout.fragment_captioning, container, false);
 
         apiKeyEditView = view.findViewById(R.id.captioning_api_key_input);
         apiKeyEditView.setText(getApiKey(getActivity()));
-        Button button = view.findViewById(R.id.btn_test_captioning);
-        button.setOnClickListener(new View.OnClickListener()
+        Button captioningButton = view.findViewById(R.id.btn_test_captioning);
+        captioningButton.setOnClickListener(new View.OnClickListener()
         {
             @Override
             public void onClick(View v)
             {
-                Intent captioningIntent = new Intent(getActivity(), CaptioningService.class);
-                getActivity().startService(captioningIntent);
-
-
-                toggleButton();
-
-
-                //startRecognitionSession();
+                saveApiKey(getActivity(), apiKeyEditView.getText().toString());
+                startCaptioning();
             }
         });
 
         return view;
     }
-
 
     @Override
     public void onStart() {
@@ -271,87 +210,39 @@ public class CaptioningFragment extends Fragment {
     @Override
     public void onStop() {
         super.onStop();
-        if(currentlyCaptioning) {
-            //pauseRecognitionSession();
-            Log.w("CaptioningFragment", "Stopped Captioning");
-            pausedCaptioning = true;
-        }
     }
 
     @Override
     public void onPause() {
         super.onPause();
-        if(currentlyCaptioning) {
-            //pauseRecognitionSession();
-            Log.w("CaptioningFragment", "Paused Captioning");
-            pausedCaptioning = true;
-        }
     }
 
     @Override
     public void onResume() {
         super.onResume();
-        if(pausedCaptioning) {
-            //startRecognitionSession();
-            Log.w("CaptioningFragment", "Resumed Captioning");
-            pausedCaptioning = false;
-        }
+
     }
 
     @Override
     public void onDestroy() {
+        if(captioningOn) stopCaptioning();
         super.onDestroy();
-        Log.w("ONDESTROY", "DESTROYED");
-        if (recognizer != null) {
-            recognizer.unregisterCallback(transcriptUpdater);
-            networkChecker.unregisterNetworkCallback();
-        }
-
-        if(factory != null) {
-            factory.cleanup();
-        }
     }
 
     /** Captioning Functions */
 
-    @Override
-    public void onRequestPermissionsResult(
-        int requestCode, String[] permissions, int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        switch (requestCode) {
-            case PERMISSIONS_REQUEST_RECORD_AUDIO:
-                // If request is cancelled, the result arrays are empty.
-                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    saveApiKey(getActivity(), apiKeyEditView.getText().toString());
-                    /*constructRepeatingRecognitionSession();
-                    startRecording();
-                    currentlyCaptioning = true;
-                    Button button = getActivity().findViewById(R.id.btn_test_captioning);
-                    button.setText("Pause Captioning");
-                    button.setOnClickListener(new View.OnClickListener()
-                    {
-                        @Override
-                        public void onClick(View v)
-                        {
-                            Intent captioningIntent = new Intent(getActivity(), CaptioningService.class);
-                            getActivity().stopService(captioningIntent);
-                            //pauseRecognitionSession();
-                        }
-                    });*/
-
-                } else {
-                    // This should nag user again if they launch without the permissions.
-                    Toast.makeText(
-                        getActivity(),
-                        "This app does not work without the Microphone permission.",
-                        Toast.LENGTH_SHORT)
-                        .show();
-                    getActivity().finish();
-                }
+    /** Handle permissions */
+    private ActivityResultLauncher<String> requestAudioPermissionLauncher =
+        registerForActivityResult(new ActivityResultContracts.RequestPermission(), isGranted -> {
+            if (isGranted) {
+                Intent captioningIntent = new Intent(getActivity(), CaptioningService.class);
+                getActivity().startService(captioningIntent);
+                toggleButton();
+            } else {
+                //Can't launch captioning without audio permissions
                 return;
-            default: // Should not happen. Something we did not request.
-        }
-    }
+            }
+        });
 
     private void initLanguageLocale() {
         // The default locale is en-US.
@@ -359,111 +250,8 @@ public class CaptioningFragment extends Fragment {
         currentLanguageCodePosition = 22;
     }
 
-    private void constructRepeatingRecognitionSession() {
-        SpeechRecognitionModelOptions options =
-            SpeechRecognitionModelOptions.newBuilder()
-                .setLocale(currentLanguageCode)
-                // As of 7/18/19, Cloud Speech's video model supports en-US only.
-                .setModel(currentLanguageCode.equals("en-US") ? VIDEO : DICTATION_DEFAULT)
-                .build();
-        CloudSpeechSessionParams cloudParams =
-            CloudSpeechSessionParams.newBuilder()
-                .setObserverParams(
-                    CloudSpeechStreamObserverParams.newBuilder().setRejectUnstableHypotheses(false))
-                .setFilterProfanity(true)
-                .setEncoderParams(
-                    CloudSpeechSessionParams.EncoderParams.newBuilder()
-                        .setEnableEncoder(true)
-                        .setAllowVbr(true)
-                        .setCodec(CodecAndBitrate.UNDEFINED))
-                .build();
-        networkChecker = new NetworkConnectionChecker(getActivity());
-        networkChecker.registerNetworkCallback();
-        Log.w("API Key", getApiKey(getActivity()));
-        // There are lots of options for formatting the text. These can be useful for debugging
-        // and visualization, but it increases the effort of reading the transcripts.
-        TranscriptionResultFormatterOptions formatterOptions =
-            TranscriptionResultFormatterOptions.newBuilder()
-                .setTranscriptColoringStyle(NO_COLORING)
-                .build();
-        factory = new CloudSpeechSessionFactory(cloudParams, getApiKey(getActivity()));
-        RepeatingRecognitionSession.Builder recognizerBuilder =
-            RepeatingRecognitionSession.newBuilder()
-                .setSpeechSessionFactory(factory)
-                .setSampleRateHz(SAMPLE_RATE)
-                .setTranscriptionResultFormatter(new SafeTranscriptionResultFormatter(formatterOptions))
-                .setSpeechRecognitionModelOptions(options)
-                .setNetworkConnectionChecker(networkChecker);
-        recognizer = recognizerBuilder.build();
-        recognizer.registerCallback(transcriptUpdater, ResultSource.WHOLE_RESULT);
-    }
-
-    private void startRecording() {
-        if (audioRecord == null) {
-
-            audioRecord =
-                new AudioRecord(
-                    MIC_SOURCE,
-                    SAMPLE_RATE,
-                    MIC_CHANNELS,
-                    MIC_CHANNEL_ENCODING,
-                    CHUNK_SIZE_SAMPLES * BYTES_PER_SAMPLE);
-        }
-
-        audioRecord.startRecording();
-        new Thread(readMicData).start();
-    }
-
-    /** The API won't work without a valid API key. This prompts the user to enter one. */
-    private void startRecognitionSession() {
-
-        if (ContextCompat.checkSelfPermission(getActivity(), Manifest.permission.RECORD_AUDIO)
-            != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(
-                getActivity(), new String[] {Manifest.permission.RECORD_AUDIO}, PERMISSIONS_REQUEST_RECORD_AUDIO);
-        } else {
-            saveApiKey(getActivity(), apiKeyEditView.getText().toString());
-            constructRepeatingRecognitionSession();
-            startRecording();
-            currentlyCaptioning = true;
-            ((TermuxActivity)getActivity()).getTerminalView().viewDriver.clearGlassesView();
-            Button button = getActivity().findViewById(R.id.btn_test_captioning);
-            button.setText("Pause Captioning");
-            button.setOnClickListener(new View.OnClickListener()
-            {
-                @Override
-                public void onClick(View v)
-                {
-                    Intent captioningIntent = new Intent(getActivity(), CaptioningService.class);
-                    getActivity().stopService(captioningIntent);
-                    //pauseRecognitionSession();
-                }
-            });
-        }
-
-
-    }
-    private void pauseRecognitionSession() {
-        if(audioRecord != null) {
-            audioRecord.stop();
-        }
-        currentlyCaptioning = false;
-        Button button = getActivity().findViewById(R.id.btn_test_captioning);
-        button.setText("Resume Captioning");
-        button.setOnClickListener(new View.OnClickListener()
-        {
-            @Override
-            public void onClick(View v)
-            {
-                Intent captioningIntent = new Intent(getActivity(), CaptioningService.class);
-                getActivity().startService(captioningIntent);
-                resumeRecognitionSession();
-            }
-        });
-    }
     private void toggleButton() {
-        if(captioningOn == true) {
-            captioningOn = false;
+        if(captioningOn == false) {
             Button button = getActivity().findViewById(R.id.btn_test_captioning);
             button.setText("Resume Captioning!");
             button.setOnClickListener(new View.OnClickListener()
@@ -471,15 +259,11 @@ public class CaptioningFragment extends Fragment {
                 @Override
                 public void onClick(View v)
                 {
-                    Intent captioningIntent = new Intent(getActivity(), CaptioningService.class);
-                    getActivity().startService(captioningIntent);
-                    toggleButton();
-                    Log.w("Start", "Service");
-                    //resumeRecognitionSession();
+                    saveApiKey(getActivity(), apiKeyEditView.getText().toString());
+                    startCaptioning();
                 }
             });
         } else {
-            captioningOn = true;
             Button button = getActivity().findViewById(R.id.btn_test_captioning);
             button.setText("Pause Captioning!");
             button.setOnClickListener(new View.OnClickListener()
@@ -487,38 +271,33 @@ public class CaptioningFragment extends Fragment {
                 @Override
                 public void onClick(View v)
                 {
-                    Intent captioningIntent = new Intent(getActivity(), CaptioningService.class);
-                    getActivity().stopService(captioningIntent);
-                    Log.w("Stop", "Service");
-
+                    saveApiKey(getActivity(), apiKeyEditView.getText().toString());
+                    stopCaptioning();
                     toggleButton();
-
-                    //resumeRecognitionSession();
                 }
             });
         }
 
     }
 
-    private void resumeRecognitionSession() {
-        if(audioRecord != null) {
-            startRecording();
+    public void startCaptioning() {
+        Log.w("Start", "Captioning");
+        captioningOn = true;
+        if(ContextCompat.checkSelfPermission(this.getContext(), Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+            Intent captioningIntent = new Intent(getActivity(), CaptioningService.class);
+            getActivity().startService(captioningIntent);
+            toggleButton();
+        } else {
+            requestAudioPermissionLauncher.launch(
+                Manifest.permission.RECORD_AUDIO);
         }
-        currentlyCaptioning = true;
-        Button button = getActivity().findViewById(R.id.btn_test_captioning);
-        button.setText("Pause Captioning");
-        button.setOnClickListener(new View.OnClickListener()
-        {
-            @Override
-            public void onClick(View v)
-            {
-                Intent captioningIntent = new Intent(getActivity(), CaptioningService.class);
-                getActivity().stopService(captioningIntent);
-                //pauseRecognitionSession();
-            }
-        });
     }
 
+    public void stopCaptioning() {
+        captioningOn = false;
+        Intent captioningIntent = new Intent(getActivity(), CaptioningService.class);
+        getActivity().stopService(captioningIntent);
+    }
 
     /** Saves the API Key in user shared preference. */
     private static void saveApiKey(Context context, String key) {

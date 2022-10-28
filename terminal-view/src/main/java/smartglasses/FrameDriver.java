@@ -5,6 +5,7 @@ import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
 import android.content.Context;
+import android.os.ParcelUuid;
 import android.util.Log;
 
 import org.apache.commons.lang3.ArrayUtils;
@@ -23,8 +24,7 @@ public class FrameDriver {
     BluetoothSocket connectionSocket;
     BluetoothAdapter bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
     boolean searching = false;
-    String UUID0= "00001101-0000-1000-8000-00805f9b34fb";
-    public String MY_UUID = UUID0;
+    String SERIAL_PORT_UUID= "00001101-0000-1000-8000-00805f9b34fb";
     int framesSent = 0;
     String currFrame;
 
@@ -47,7 +47,7 @@ public class FrameDriver {
         //Connection code - see if we can optimize this later.
         if(!isConnected()) {
             currFrame = imageHexString;
-            if (!searching) searchAndConnect(MY_UUID);
+            if (!searching) searchAndConnect(SERIAL_PORT_UUID);
         }
         if(isConnected())
         {
@@ -80,7 +80,7 @@ public class FrameDriver {
                         } catch (IOException ioException) {
                             ioException.printStackTrace();
                         }
-                        if(!searching) searchAndConnect(MY_UUID);
+                        if(!searching) searchAndConnect(SERIAL_PORT_UUID);
                         return;
                     }
                 }});
@@ -124,7 +124,7 @@ public class FrameDriver {
                         } catch (IOException ioException) {
                             ioException.printStackTrace();
                         }
-                        if(!searching) searchAndConnect(MY_UUID);
+                        if(!searching) searchAndConnect(SERIAL_PORT_UUID);
                         return;
                     }
                 }});
@@ -189,8 +189,16 @@ public class FrameDriver {
                             Log.w("deviceName", "" + deviceName);
                             continue;
                         }
-                        connectThread = new ConnectThread(device,  device.getUuids()[0].getUuid().toString(), true);
-                        Log.w("Log", "Trying to connect to device address: " + deviceHardwareAddress + "using UUID: " + device.getUuids()[0].getUuid().toString());
+                        //TODO: Why is this working?
+                        //connectThread = new ConnectThread(device,  device.getUuids()[0].getUuid().toString(), true);
+                        connectThread = new ConnectThread(device,  str_UUID, true);
+                        Log.w("UUID HardCoded", str_UUID);
+                        Log.w("UUIDS Gotten", "" + device.getUuids());
+                        for(ParcelUuid id: device.getUuids()) {
+                            Log.w("UUID List", id.toString());
+                        }
+                        Log.w("UUID getUuids", device.getUuids()[0].getUuid().toString());
+                        Log.w("Log", "Trying to connect to device address: " + deviceHardwareAddress + "using UUID: " + str_UUID);
                         connectThread.start();
                     }
                 }

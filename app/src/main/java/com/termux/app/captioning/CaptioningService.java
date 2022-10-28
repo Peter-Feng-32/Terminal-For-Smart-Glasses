@@ -147,6 +147,7 @@ public class CaptioningService extends Service {
     }
 
     @Override
+
     public IBinder onBind(Intent intent) {
         // TODO: Return the communication channel to the service.
         return null;
@@ -164,7 +165,10 @@ public class CaptioningService extends Service {
     @Override
     public void onDestroy() {
         super.onDestroy();
-        audioRecord.stop();
+        if(audioRecord != null) {
+            audioRecord.stop();
+        }
+
     }
 
     /** Captioning Functions */
@@ -215,7 +219,6 @@ public class CaptioningService extends Service {
 
     private void startRecording() {
         if (audioRecord == null) {
-
             audioRecord =
                 new AudioRecord(
                     MIC_SOURCE,
@@ -226,15 +229,6 @@ public class CaptioningService extends Service {
         }
         audioRecord.startRecording();
         new Thread(readMicData).start();
-    }
-
-
-    /** Saves the API Key in user shared preference. */
-    private static void saveApiKey(Context context, String key) {
-        PreferenceManager.getDefaultSharedPreferences(context)
-            .edit()
-            .putString(SHARE_PREF_API_KEY, key)
-            .commit();
     }
 
     /** Gets the API key from shared preference. */
