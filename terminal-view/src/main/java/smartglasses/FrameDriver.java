@@ -183,8 +183,8 @@ public class FrameDriver {
                             Log.w("deviceName", "" + deviceName);
                             continue;
                         }
-                        connectThread = new ConnectThread(device,  device.getUuids()[0].getUuid().toString(), true);
-                        Log.w("Log", "Trying to connect to device address: " + deviceHardwareAddress + "using UUID: " + device.getUuids()[0].getUuid().toString());
+                        connectThread = new ConnectThread(device,  str_UUID, true);
+                        Log.w("Log", "Trying to connect to device address: " + deviceHardwareAddress + "using UUID: " + str_UUID);
                         connectThread.start();
                     }
                 }
