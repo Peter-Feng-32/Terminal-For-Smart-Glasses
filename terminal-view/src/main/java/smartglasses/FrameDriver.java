@@ -189,7 +189,6 @@ public class FrameDriver {
                             Log.w("deviceName", "" + deviceName);
                             continue;
                         }
-                        //TODO: Why is this working?
                         //connectThread = new ConnectThread(device,  device.getUuids()[0].getUuid().toString(), true);
                         connectThread = new ConnectThread(device,  str_UUID, true);
                         Log.w("UUID HardCoded", str_UUID);
