@@ -17,6 +17,9 @@ import com.google.audio.CodecAndBitrate;
 import com.google.audio.NetworkConnectionChecker;
 import com.termux.R;
 import com.termux.app.TermuxActivity;
+import com.termux.app.TermuxService;
+import com.termux.app.terminal.TermuxTerminalSessionClient;
+import com.termux.shared.termux.shell.command.runner.terminal.TermuxSession;
 import com.termux.terminal.TerminalBuffer;
 
 
@@ -60,6 +63,7 @@ import com.google.audio.asr.TranscriptionResultFormatterOptions;
 import com.google.audio.asr.TranscriptionResultUpdatePublisher;
 import com.google.audio.asr.TranscriptionResultUpdatePublisher.ResultSource;
 import com.google.audio.asr.cloud.CloudSpeechSessionFactory;
+import com.termux.terminal.TerminalSession;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -77,6 +81,7 @@ public class CaptioningFragment extends Fragment {
 
     private static final int PERMISSIONS_REQUEST_RECORD_AUDIO = 1;
     private static final String SHARE_PREF_API_KEY = "api_key";
+    private final String CAPTIONING_TERMUX_SESSION_NAME = "Captioning Session";
 
     private int currentLanguageCodePosition;
     private String currentLanguageCode;
@@ -203,27 +208,6 @@ public class CaptioningFragment extends Fragment {
     }
 
     @Override
-    public void onStart() {
-        super.onStart();
-    }
-
-    @Override
-    public void onStop() {
-        super.onStop();
-    }
-
-    @Override
-    public void onPause() {
-        super.onPause();
-    }
-
-    @Override
-    public void onResume() {
-        super.onResume();
-
-    }
-
-    @Override
     public void onDestroy() {
         if(captioningOn) stopCaptioning();
         super.onDestroy();
@@ -284,6 +268,34 @@ public class CaptioningFragment extends Fragment {
         Log.w("Start", "Captioning");
         captioningOn = true;
         if(ContextCompat.checkSelfPermission(this.getContext(), Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+            TermuxActivity termuxActivity = (TermuxActivity) getActivity();
+            TermuxTerminalSessionClient termuxTerminalSessionClient = termuxActivity.getTermuxTerminalSessionClient();
+            TermuxService termuxService = termuxActivity.getTermuxService();
+
+            //Find a captioning session. If none exists make it.
+            TerminalSession terminalSession = null;
+            for(int i = 0; i < termuxService.getTermuxSessionsSize(); i++) {
+                TermuxSession termuxSession = termuxService.getTermuxSession(i);
+                if(termuxSession.getTerminalSession().mSessionName == CAPTIONING_TERMUX_SESSION_NAME) {
+                    terminalSession = termuxSession.getTerminalSession();
+                }
+            }
+            //Find a captioning session. If none exists, we are at max sessions, and we can't start captioining.
+            if(terminalSession == null) {
+                termuxTerminalSessionClient.addNewSession(false, CAPTIONING_TERMUX_SESSION_NAME);
+            }
+            for(int i = 0; i < termuxService.getTermuxSessionsSize(); i++) {
+                TermuxSession termuxSession = termuxService.getTermuxSession(i);
+                if(termuxSession.getTerminalSession().mSessionName == CAPTIONING_TERMUX_SESSION_NAME) {
+                    terminalSession = termuxSession.getTerminalSession();
+                }
+            }
+            if(terminalSession == null) {
+                termuxActivity.showToast("Too many Terminal Sessions open, close one!", false);
+                return;
+            }
+
+            CaptioningService.setTerminalEmulator(terminalSession.getEmulator());
             Intent captioningIntent = new Intent(getActivity(), CaptioningService.class);
             getActivity().startService(captioningIntent);
             toggleButton();

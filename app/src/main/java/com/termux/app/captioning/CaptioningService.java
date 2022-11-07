@@ -70,6 +70,7 @@ import smartglasses.ViewDriver;
 
 public class CaptioningService extends Service {
 
+    public static TerminalEmulator terminalEmulator;
 
     /** Captioning Library stuff */
 
@@ -98,7 +99,6 @@ public class CaptioningService extends Service {
 
     //My start-stop implementation
     private TranscriptionResultUpdatePublisher.UpdateType prevUpdateType;
-    private CaptionFormatter captionFormatter;
     private CaptionRenderer captionRenderer;
 
     private final TranscriptionResultUpdatePublisher transcriptUpdater =
@@ -134,15 +134,11 @@ public class CaptioningService extends Service {
         };
 
     private void handleCaption(String caption) {
-        captionFormatter.formatCaption(caption);
-        char[][] captionBuffer = captionFormatter.getBuffer();
-
         //Draw an image using the buffer.
-        captionRenderer.processCaption(captionBuffer);
+        //captionRenderer.processCaption(captionBuffer);
     }
 
     public CaptioningService() {
-        captionFormatter = new CaptionFormatter();
         captionRenderer = new CaptionRenderer();
     }
 
@@ -236,6 +232,8 @@ public class CaptioningService extends Service {
         return PreferenceManager.getDefaultSharedPreferences(context).getString(SHARE_PREF_API_KEY, "");
     }
 
-
+    public static void setTerminalEmulator(TerminalEmulator emulator) {
+        terminalEmulator = emulator;
+    }
 
 }
