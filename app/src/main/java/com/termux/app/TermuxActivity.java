@@ -574,11 +574,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
             return true;
         });
     }
-
-
-
-
-
+    
     @SuppressLint("RtlHardcoded")
     @Override
     public void onBackPressed() {

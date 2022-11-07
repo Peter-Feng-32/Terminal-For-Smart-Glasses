@@ -502,6 +502,155 @@ public class TerminalRendererTooz {
 
     /** Render the terminal to a canvas with at a specified row scroll, and an optional rectangular selection. */
     /** TODO: Tooz */
+    public final void renderRowsToTooz(TerminalEmulator mEmulator, Canvas canvas, int topRow,
+                                       int selectionY1, int selectionY2, int selectionX1, int selectionX2, int numRows, int textSize) {
+        final boolean reverseVideo = mEmulator.isReverseVideo();
+        final int endRow = topRow + Integer.min(mEmulator.mRows, numRows);
+        final int columns = mEmulator.mColumns;
+        final int cursorCol = mEmulator.getCursorCol();
+        final int cursorRow = mEmulator.getCursorRow();
+        final boolean cursorVisible = mEmulator.shouldCursorBeVisible();
+        final TerminalBuffer screen = mEmulator.getScreen();
+        final int[] palette = mEmulator.mColors.mCurrentColors;
+        final int cursorShape = mEmulator.getCursorStyle();
+
+        /**
+         * TODO: Figure out a better way to implement this hacky solution/why it's needed
+         * Not sure why this has to be scaled up when the canvas width is 400 and the screen is 400 pixels.
+         //But for some reason a text width of 400 leaves ~1/1.22 of the glasses screen unused,
+         //So we end up treating it as if we sent a bitmap of size 488 instead.
+         Update: Fixed, there was a bug in the code where it was using the phone font's width to detect width mismatch,
+         and scaling down the font size to compensate when drawing.
+         */
+
+        char[] spacesArray = new char[columns];
+        Arrays.fill(spacesArray, ' ');
+        String spaces = new String(spacesArray);
+
+        mTextSizeTooz = textSize;
+        mTextPaintTooz.setTextSize(textSize);
+
+        mFontLineSpacingTooz = (int) Math.ceil(mTextPaintTooz.getFontSpacing());
+        mFontAscentTooz = (int) Math.ceil(mTextPaintTooz.ascent());
+        mFontLineSpacingAndAscentTooz = mFontLineSpacingTooz + mFontAscentTooz;
+        mFontWidthTooz = mTextPaintTooz.measureText(" ");
+
+        int textHeight = mFontLineSpacingAndAscentTooz + mFontLineSpacingTooz * mEmulator.mRows;
+        Log.w("mRows", mEmulator.mRows + " ");
+        while (textHeight >= MAXHEIGHTTOOZ) {
+
+            //While text height goes off the screen, decrease its size.
+            mTextPaintTooz.setTextSize(--mTextSizeTooz);
+
+            mFontLineSpacingTooz = (int) Math.ceil(mTextPaintTooz.getFontSpacing());
+            mFontAscentTooz = (int) Math.ceil(mTextPaintTooz.ascent());
+            mFontLineSpacingAndAscentTooz = mFontLineSpacingTooz + mFontAscentTooz;
+
+            //Log.w("Info1:", String.format("mFontLineSpacingTooz: %d", mFontLineSpacingTooz));
+
+            textHeight = mFontLineSpacingAndAscentTooz + mFontLineSpacingTooz * mEmulator.mRows;
+        }
+        mFontLineSpacingTooz = (int) Math.ceil(mTextPaintTooz.getFontSpacing());
+        mFontAscentTooz = (int) Math.ceil(mTextPaintTooz.ascent());
+        mFontLineSpacingAndAscentTooz = mFontLineSpacingTooz + mFontAscentTooz;
+        mFontWidthTooz = mTextPaintTooz.measureText(" ");
+
+        if (reverseVideo)
+            canvas.drawColor(palette[TextStyle.COLOR_INDEX_FOREGROUND], PorterDuff.Mode.SRC);
+
+        float heightOffset = mFontLineSpacingAndAscentTooz;
+        for (int row = topRow; row < endRow; row++) {
+            heightOffset += mFontLineSpacingTooz;
+            final int cursorX = (row == cursorRow && cursorVisible) ? cursorCol : -1;
+            int selx1 = -1, selx2 = -1;
+            if (row >= selectionY1 && row <= selectionY2) {
+                if (row == selectionY1) selx1 = selectionX1;
+                selx2 = (row == selectionY2) ? selectionX2 : mEmulator.mColumns;
+            }
+
+            TerminalRow lineObject = screen.allocateFullLineIfNecessary(screen.externalToInternalRow(row));
+            final char[] line = lineObject.mText;
+            final int charsUsedInLine = lineObject.getSpaceUsed();
+
+            long lastRunStyle = 0;
+            boolean lastRunInsideCursor = false;
+            boolean lastRunInsideSelection = false;
+            int lastRunStartColumn = -1;
+            int lastRunStartIndex = 0;
+            boolean lastRunFontWidthMismatch = false;
+            int currentCharIndex = 0;
+            float measuredWidthForRun = 0.f;
+
+            for (int column = 0; column < columns; ) {
+                final char charAtIndex = line[currentCharIndex];
+                final boolean charIsHighsurrogate = Character.isHighSurrogate(charAtIndex);
+                final int charsForCodePoint = charIsHighsurrogate ? 2 : 1;
+                final int codePoint = charIsHighsurrogate ? Character.toCodePoint(charAtIndex, line[currentCharIndex + 1]) : charAtIndex;
+                final int codePointWcWidth = WcWidth.width(codePoint);
+                final boolean insideCursor = (cursorX == column || (codePointWcWidth == 2 && cursorX == column + 1));
+                final boolean insideSelection = column >= selx1 && column <= selx2;
+                final long style = lineObject.getStyle(column);
+
+                // Check if the measured text width for this code point is not the same as that expected by wcwidth().
+                // This could happen for some fonts which are not truly monospace, or for more exotic characters such as
+                // smileys which android font renders as wide.
+                // If this is detected, we draw this code point scaled to match what wcwidth() expects.
+                final float measuredCodePointWidth = (codePoint < asciiMeasures.length) ? asciiMeasures[codePoint] : mTextPaintTooz.measureText(line,
+                    currentCharIndex, charsForCodePoint);
+
+                final boolean fontWidthMismatch = Math.abs(measuredCodePointWidth / mFontWidthTooz - codePointWcWidth) > 0.01;
+
+                if (style != lastRunStyle || insideCursor != lastRunInsideCursor || insideSelection != lastRunInsideSelection || fontWidthMismatch || lastRunFontWidthMismatch) {
+                    if (column == 0) {
+                        // Skip first column as there is nothing to draw, just record the current style.
+                    } else {
+                        final int columnWidthSinceLastRun = column - lastRunStartColumn;
+                        final int charsSinceLastRun = currentCharIndex - lastRunStartIndex;
+                        int cursorColor = lastRunInsideCursor ? mEmulator.mColors.mCurrentColors[TextStyle.COLOR_INDEX_CURSOR] : 0;
+                        boolean invertCursorTextColor = false;
+                        if (lastRunInsideCursor && cursorShape == TerminalEmulator.TERMINAL_CURSOR_STYLE_BLOCK) {
+                            invertCursorTextColor = true;
+                        }
+
+                        drawTextRunTooz(canvas, line, palette, heightOffset, lastRunStartColumn, columnWidthSinceLastRun,
+                            lastRunStartIndex, charsSinceLastRun, measuredWidthForRun,
+                            cursorColor, cursorShape, lastRunStyle, reverseVideo || invertCursorTextColor || lastRunInsideSelection);
+                    }
+                    measuredWidthForRun = 0.f;
+                    lastRunStyle = style;
+                    lastRunInsideCursor = insideCursor;
+                    lastRunInsideSelection = insideSelection;
+                    lastRunStartColumn = column;
+                    lastRunStartIndex = currentCharIndex;
+                    lastRunFontWidthMismatch = fontWidthMismatch;
+                }
+                measuredWidthForRun += measuredCodePointWidth;
+                column += codePointWcWidth;
+                currentCharIndex += charsForCodePoint;
+                while (currentCharIndex < charsUsedInLine && WcWidth.width(line, currentCharIndex) <= 0) {
+                    // Eat combining chars so that they are treated as part of the last non-combining code point,
+                    // instead of e.g. being considered inside the cursor in the next run.
+                    currentCharIndex += Character.isHighSurrogate(line[currentCharIndex]) ? 2 : 1;
+                }
+            }
+
+            final int columnWidthSinceLastRun = columns - lastRunStartColumn;
+            final int charsSinceLastRun = currentCharIndex - lastRunStartIndex;
+            int cursorColor = lastRunInsideCursor ? mEmulator.mColors.mCurrentColors[TextStyle.COLOR_INDEX_CURSOR] : 0;
+            boolean invertCursorTextColor = false;
+            if (lastRunInsideCursor && cursorShape == TerminalEmulator.TERMINAL_CURSOR_STYLE_BLOCK) {
+                invertCursorTextColor = true;
+            }
+            drawTextRunTooz(canvas, line, palette, heightOffset, lastRunStartColumn, columnWidthSinceLastRun, lastRunStartIndex, charsSinceLastRun,
+                measuredWidthForRun, cursorColor, cursorShape, lastRunStyle, reverseVideo || invertCursorTextColor || lastRunInsideSelection);
+        }
+
+    }
+
+
+
+    /** Render the terminal to a canvas with at a specified row scroll, and an optional rectangular selection. */
+    /** TODO: Tooz */
     public final void renderToToozSingleChar(TerminalEmulator mEmulator, Canvas canvas, int topRow,
                                              int selectionY1, int selectionY2, int selectionX1, int selectionX2, char c, int cursor, int desiredRow, int desiredCol) {
         final boolean reverseVideo = mEmulator.isReverseVideo();

@@ -2,8 +2,11 @@ package com.termux.app.captioning;
 
 import android.app.Service;
 import android.content.Intent;
+import android.os.Build;
 import android.os.IBinder;
 import android.os.Bundle;
+
+import androidx.annotation.RequiresApi;
 import androidx.fragment.app.Fragment;
 
 import android.util.Log;
@@ -65,12 +68,14 @@ import com.termux.terminal.TerminalSession;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 
+import smartglasses.TerminalRendererTooz;
 import smartglasses.ViewDriver;
 
 
 public class CaptioningService extends Service {
 
     public static TerminalEmulator terminalEmulator;
+    public CaptioningDriver captioningDriver;
 
     /** Captioning Library stuff */
 
@@ -99,17 +104,15 @@ public class CaptioningService extends Service {
 
     //My start-stop implementation
     private TranscriptionResultUpdatePublisher.UpdateType prevUpdateType;
-    private CaptionRenderer captionRenderer;
 
     private final TranscriptionResultUpdatePublisher transcriptUpdater =
         (formattedTranscript, updateType) -> {
 
             if(updateType == TranscriptionResultUpdatePublisher.UpdateType.TRANSCRIPT_UPDATED) {
                 if(prevUpdateType == TranscriptionResultUpdatePublisher.UpdateType.TRANSCRIPT_FINALIZED) {
-                    captionRenderer.clearGlasses();
+                    captioningDriver.clearGlasses();
                     prevUpdateType = null;
                 }
-                Log.w("Caption", formattedTranscript.toString());
                 handleCaption(formattedTranscript.toString());
             }
             if(updateType == TranscriptionResultUpdatePublisher.UpdateType.TRANSCRIPT_FINALIZED) {
@@ -135,11 +138,78 @@ public class CaptioningService extends Service {
 
     private void handleCaption(String caption) {
         //Draw an image using the buffer.
-        //captionRenderer.processCaption(captionBuffer);
+
+        String escapeSeq = "\033[2J\033[H"; //Clear screen and move cursor to top left.
+        terminalEmulator.append(escapeSeq.getBytes(), escapeSeq.length());
+        //Let's write only 3 rows.
+        final int NUM_ROWS = 3;
+        int ROW_LENGTH = terminalEmulator.mColumns;
+        final int MAX_LENGTH_TO_WRITE = ROW_LENGTH * (NUM_ROWS - 1);
+
+        String captionSubstring;
+        if(caption.length() < MAX_LENGTH_TO_WRITE) {
+            captionSubstring = caption;
+        } else {
+            int i = caption.length() - MAX_LENGTH_TO_WRITE;
+            while(caption.getBytes(StandardCharsets.UTF_8)[i] != ' ') {
+                i++;
+            }
+            captionSubstring = caption.substring(i);
+        }
+        //Get only enough words to fit on 3 lines.
+        //Split substring into words
+        String[] splited = captionSubstring.split(" ");
+        ArrayList<String> toSendArray = new ArrayList<>();
+        int numCharsWritten = 0;
+        int numCharsWrittenInRow = 0;
+        int currIndex = 0;
+        while(currIndex < splited.length && numCharsWritten < MAX_LENGTH_TO_WRITE) {
+            String currWord = splited[currIndex];
+            if(currWord.length() > ROW_LENGTH) {
+                //If the word is bigger than a row, just send it.
+                toSendArray.add(currWord);
+                numCharsWritten += currWord.length();
+                numCharsWrittenInRow = (numCharsWrittenInRow + currWord.length()) % ROW_LENGTH;
+                if(numCharsWrittenInRow % ROW_LENGTH != 0) {
+                    toSendArray.add(" ");
+                    numCharsWrittenInRow = (numCharsWrittenInRow + 1) % ROW_LENGTH;
+                    numCharsWritten++;
+                }
+            } else {
+                int numCharsRemainingInRow = ROW_LENGTH - numCharsWrittenInRow;
+                if(currWord.length() > numCharsRemainingInRow) {
+                    //Move to next row.
+                    String spaces = "";
+                    for(int i = 0; i < numCharsRemainingInRow; i++) {
+                        spaces = spaces + " ";
+                        numCharsWritten++;
+                    }
+                    toSendArray.add(spaces);
+                    numCharsWrittenInRow = 0;
+                }
+                toSendArray.add(currWord);
+                numCharsWritten += currWord.length();
+                numCharsWrittenInRow = (numCharsWrittenInRow + currWord.length()) % ROW_LENGTH;
+                if(numCharsWrittenInRow % ROW_LENGTH != 0) {
+                    toSendArray.add(" ");
+                    numCharsWrittenInRow = (numCharsWrittenInRow + 1) % ROW_LENGTH;
+                    numCharsWritten++;
+                }
+            }
+            currIndex++;
+        }
+        for(int i = 0; i < toSendArray.size(); i++) {
+            String toSend = toSendArray.get(i);
+            terminalEmulator.append(toSend.getBytes(StandardCharsets.UTF_8),toSend.getBytes(StandardCharsets.UTF_8).length);
+
+        }
+        //Send 1 row if toSend takes up 1 row, send 2 if it takes up 2, send 3 if it takes up 3...
+        captioningDriver.redrawGlassesRows(0, NUM_ROWS);
+
     }
 
     public CaptioningService() {
-        captionRenderer = new CaptionRenderer();
+
     }
 
     @Override
@@ -150,8 +220,10 @@ public class CaptioningService extends Service {
         //throw new UnsupportedOperationException("Not yet implemented");
     }
 
+    @RequiresApi(api = Build.VERSION_CODES.P)
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        captioningDriver = new CaptioningDriver(terminalEmulator, 100);
         initLanguageLocale();
         constructRepeatingRecognitionSession();
         startRecording();
