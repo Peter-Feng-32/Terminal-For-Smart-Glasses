@@ -992,6 +992,7 @@ public final class TerminalView extends View {
 
     /** Check if the terminal size in rows and columns should be updated. */
     public void updateSize() {
+
         int viewWidth = getWidth();
         int viewHeight = getHeight();
         if (viewWidth == 0 || viewHeight == 0 || mTermSession == null) return;
@@ -1004,7 +1005,18 @@ public final class TerminalView extends View {
 
 
         if (mEmulator == null || (newColumns != mEmulator.mColumns || newRows != mEmulator.mRows)) {
-            mTermSession.updateSize(newColumns, newRows);
+            //TODO: Make this session name a shared string in resources.
+            /*TODO: Program flow goes: New emulator is made, view is updated, size is updated to initialize emulator, then the fragment re-updates size.
+            We should in the future make this more robust(ie precalculate the rows and cols from captioning needed and set that here when we need to initialize the
+            captioning emulator as well instead of using newColumns and newRows, which are essentially dummy values.
+            */
+            if(mTermSession.mSessionName != "Captioning Session") {
+                mTermSession.updateSize(newColumns, newRows);
+            } else {
+                if(mTermSession.getEmulator() == null) {
+                    mTermSession.updateSize(newColumns, newRows);
+                }
+            }
             mEmulator = mTermSession.getEmulator();
             mClient.onEmulatorSet();
 

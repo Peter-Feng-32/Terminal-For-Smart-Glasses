@@ -1,5 +1,7 @@
 package com.termux.terminal;
 
+import android.util.Log;
+
 import java.util.Arrays;
 
 /**

@@ -1,10 +1,15 @@
 package com.termux.app.captioning;
 
 import android.content.Intent;
+import android.graphics.Color;
+import android.graphics.Paint;
+import android.graphics.Typeface;
+import android.os.Build;
 import android.os.Bundle;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.annotation.RequiresApi;
 import androidx.fragment.app.Fragment;
 
 import android.util.Log;
@@ -81,12 +86,16 @@ public class CaptioningFragment extends Fragment {
 
     private static final int PERMISSIONS_REQUEST_RECORD_AUDIO = 1;
     private static final String SHARE_PREF_API_KEY = "api_key";
+    private static final String SHARE_PREF_CAPTIONING_TEXT_SIZE = "12";
     private final String CAPTIONING_TERMUX_SESSION_NAME = "Captioning Session";
+    private final int SCREEN_WIDTH = 400;
+    private final int SCREEN_HEIGHT = 640;
 
     private int currentLanguageCodePosition;
     private String currentLanguageCode;
 
     private TextView apiKeyEditView;
+    private TextView textSizeTextView;
     private boolean captioningOn = false;
 
     /**
@@ -112,78 +121,6 @@ public class CaptioningFragment extends Fragment {
         initLanguageLocale();
     }
 
-    /*
-    public void caption(String caption) {
-        String escapeSeq = "\033[2J\033[H"; //Clear screen and move cursor to top left.
-        ((TermuxActivity)getActivity()).getTerminalView().mEmulator.append(escapeSeq.getBytes(), escapeSeq.length());
-        //Let's write only 3 rows.
-        final int NUM_ROWS = 3;
-        int ROW_LENGTH = ((TermuxActivity)getActivity()).getTerminalView().mEmulator.mColumns;
-        final int MAX_LENGTH_TO_WRITE = ROW_LENGTH * (NUM_ROWS - 1);
-
-        String captionSubstring;
-        if(caption.length() < MAX_LENGTH_TO_WRITE) {
-            captionSubstring = caption;
-        } else {
-            int i = caption.length() - MAX_LENGTH_TO_WRITE;
-            while(caption.getBytes(StandardCharsets.UTF_8)[i] != ' ') {
-                i++;
-            }
-            captionSubstring = caption.substring(i);
-        }
-        //Get only enough words to fit on 3 lines.
-        //Split substring into words
-        String[] splited = captionSubstring.split(" ");
-        ArrayList<String> toSendArray = new ArrayList<>();
-        int numCharsWritten = 0;
-        int numCharsWrittenInRow = 0;
-        int currIndex = 0;
-        while(currIndex < splited.length && numCharsWritten < MAX_LENGTH_TO_WRITE) {
-            String currWord = splited[currIndex];
-            if(currWord.length() > ROW_LENGTH) {
-                //If the word is bigger than a row, just send it.
-                toSendArray.add(currWord);
-                numCharsWritten += currWord.length();
-                numCharsWrittenInRow = (numCharsWrittenInRow + currWord.length()) % ROW_LENGTH;
-                if(numCharsWrittenInRow % ROW_LENGTH != 0) {
-                    toSendArray.add(" ");
-                    numCharsWrittenInRow = (numCharsWrittenInRow + 1) % ROW_LENGTH;
-                    numCharsWritten++;
-                }
-            } else {
-                int numCharsRemainingInRow = ROW_LENGTH - numCharsWrittenInRow;
-                if(currWord.length() > numCharsRemainingInRow) {
-                    //Move to next row.
-                    String spaces = "";
-                    for(int i = 0; i < numCharsRemainingInRow; i++) {
-                        spaces = spaces + " ";
-                        numCharsWritten++;
-                    }
-                    toSendArray.add(spaces);
-                    numCharsWrittenInRow = 0;
-                }
-                toSendArray.add(currWord);
-                numCharsWritten += currWord.length();
-                numCharsWrittenInRow = (numCharsWrittenInRow + currWord.length()) % ROW_LENGTH;
-                if(numCharsWrittenInRow % ROW_LENGTH != 0) {
-                    toSendArray.add(" ");
-                    numCharsWrittenInRow = (numCharsWrittenInRow + 1) % ROW_LENGTH;
-                    numCharsWritten++;
-                }
-            }
-            currIndex++;
-        }
-        for(int i = 0; i < toSendArray.size(); i++) {
-            String toSend = toSendArray.get(i);
-            ((TermuxActivity)getActivity()).getTerminalView().mEmulator.append(toSend.getBytes(StandardCharsets.UTF_8),toSend.getBytes(StandardCharsets.UTF_8).length);
-        }
-        //Send 1 row if toSend takes up 1 row, send 2 if it takes up 2, send 3 if it takes up 3...
-        ((TermuxActivity)getActivity()).getTerminalView().viewDriver.redrawGlassesRows(((TermuxActivity)getActivity()).getTerminalView().getTopRow(), NUM_ROWS);
-
-        //Note: this doesn't update the screen.
-        ((TermuxActivity)getActivity()).getTerminalView().invalidate();
-    }
-    */
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
@@ -193,6 +130,8 @@ public class CaptioningFragment extends Fragment {
 
         apiKeyEditView = view.findViewById(R.id.captioning_api_key_input);
         apiKeyEditView.setText(getApiKey(getActivity()));
+        textSizeTextView = view.findViewById(R.id.editTextSize);
+        textSizeTextView.setText(getTextSize(getActivity()));
         Button captioningButton = view.findViewById(R.id.btn_test_captioning);
         captioningButton.setOnClickListener(new View.OnClickListener()
         {
@@ -200,10 +139,10 @@ public class CaptioningFragment extends Fragment {
             public void onClick(View v)
             {
                 saveApiKey(getActivity(), apiKeyEditView.getText().toString());
+                saveTextSize(getActivity(), textSizeTextView.getText().toString());
                 startCaptioning();
             }
         });
-
         return view;
     }
 
@@ -240,10 +179,12 @@ public class CaptioningFragment extends Fragment {
             button.setText("Resume Captioning!");
             button.setOnClickListener(new View.OnClickListener()
             {
+                @RequiresApi(api = Build.VERSION_CODES.P)
                 @Override
                 public void onClick(View v)
                 {
                     saveApiKey(getActivity(), apiKeyEditView.getText().toString());
+                    saveTextSize(getActivity(), textSizeTextView.getText().toString());
                     startCaptioning();
                 }
             });
@@ -256,6 +197,7 @@ public class CaptioningFragment extends Fragment {
                 public void onClick(View v)
                 {
                     saveApiKey(getActivity(), apiKeyEditView.getText().toString());
+                    saveTextSize(getActivity(), textSizeTextView.getText().toString());
                     stopCaptioning();
                     toggleButton();
                 }
@@ -294,8 +236,20 @@ public class CaptioningFragment extends Fragment {
                 termuxActivity.showToast("Too many Terminal Sessions open, close one!", false);
                 return;
             }
+            int textSize;
+            try {
+                textSize = Integer.parseInt(textSizeTextView.getText().toString());
+            } catch(Exception e) {
+                Log.w("CaptioningFragment", "Failed to parse text size.");
+                return;
+            }
 
+            Paint captionPaint = captionPaint(textSize);
+            terminalSession.updateSize(calculateColsInScreen(captionPaint), calculateRowsInScreen(captionPaint));
+            CaptioningService.textSize = textSize;
             CaptioningService.setTerminalEmulator(terminalSession.getEmulator());
+            CaptioningDriver.captionRenderer = new CaptionRenderer(captionPaint);
+            Log.w("CaptioningFragment", "columns: " + SCREEN_WIDTH/textSize + " rows: " + SCREEN_HEIGHT/textSize);
             Intent captioningIntent = new Intent(getActivity(), CaptioningService.class);
             getActivity().startService(captioningIntent);
             toggleButton();
@@ -304,6 +258,24 @@ public class CaptioningFragment extends Fragment {
                 Manifest.permission.RECORD_AUDIO);
         }
     }
+
+    private Paint captionPaint(int textSize) {
+        Paint paint = new Paint();
+        paint.setTypeface(Typeface.MONOSPACE);
+        paint.setAntiAlias(true);
+        paint.setTextSize(textSize);
+        return paint;
+    }
+
+    private int calculateColsInScreen(Paint paint) {
+        return (int)(SCREEN_WIDTH / paint.measureText("X"));
+    }
+
+    private int calculateRowsInScreen(Paint paint) {
+        return (SCREEN_HEIGHT - (int) Math.ceil(paint.getFontSpacing()) - (int) Math.ceil(paint.ascent())) / (int) Math.ceil(paint.getFontSpacing());
+    }
+
+
 
     public void stopCaptioning() {
         captioningOn = false;
@@ -324,5 +296,17 @@ public class CaptioningFragment extends Fragment {
         return PreferenceManager.getDefaultSharedPreferences(context).getString(SHARE_PREF_API_KEY, "");
     }
 
+    /** Saves the API Key in user shared preference. */
+    private static void saveTextSize(Context context, String key) {
+        PreferenceManager.getDefaultSharedPreferences(context)
+            .edit()
+            .putString(SHARE_PREF_CAPTIONING_TEXT_SIZE, key)
+            .commit();
+    }
+
+    /** Gets the API key from shared preference. */
+    private static String getTextSize(Context context) {
+        return PreferenceManager.getDefaultSharedPreferences(context).getString(SHARE_PREF_CAPTIONING_TEXT_SIZE, "");
+    }
 
 }

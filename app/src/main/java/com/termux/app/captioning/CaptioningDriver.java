@@ -4,6 +4,7 @@ import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.Paint;
 import android.graphics.Typeface;
 import android.os.Build;
 import android.util.Log;
@@ -33,6 +34,7 @@ import smartglasses.TerminalRendererTooz;
 
 public class CaptioningDriver implements Serializable {
     TerminalRendererTooz mRenderer;
+    public static CaptionRenderer captionRenderer;
     FrameDriver frameDriver;
     TerminalEmulator emulator;
     TerminalBuffer buffer;
@@ -82,9 +84,6 @@ public class CaptioningDriver implements Serializable {
     public void updateBuffers(){
         oldScreen = currScreen;
         if(buffer == null) return;
-
-
-
         currScreen = new char[buffer.getActiveRows() - buffer.getActiveTranscriptRows()][buffer.getmLines()[buffer.externalToInternalRow(0)].getmText().length];
         for(int i = 0; i < buffer.getActiveRows() - buffer.getActiveTranscriptRows(); i++) {
             TerminalRow row = buffer.getmLines()[buffer.externalToInternalRow(0 + i)];
@@ -216,9 +215,9 @@ public class CaptioningDriver implements Serializable {
     public void redrawGlassesRows(int topRow, int numRows) {
         updateReferences();
         //Render delta update bitmap
-        Bitmap bitmap = Bitmap.createBitmap(400, textSize * numRows, Bitmap.Config.ARGB_8888);
+        Bitmap bitmap = Bitmap.createBitmap(400, 80*numRows, Bitmap.Config.ARGB_8888);
         Canvas toozCanvas = new Canvas(bitmap);
-        mRenderer.renderRowsToTooz(emulator, toozCanvas, topRow, -1,-1,-1,-1, numRows, textSize);
+        captionRenderer.renderRowsToTooz(emulator, toozCanvas, topRow, -1,-1,-1,-1, numRows);
         //Send full bitmap to tooz
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out);
@@ -239,5 +238,26 @@ public class CaptioningDriver implements Serializable {
         String s = DriverHelper.bytesToHex(byteArray);
         frameDriver.sendFullFrame(s);
     }
+
+    /*
+    public void testTextSize(int textSize) {
+        Bitmap bitmap = Bitmap.createBitmap(400, 640, Bitmap.Config.ARGB_8888);
+        Canvas c = new Canvas(bitmap);
+        Paint p = new Paint();
+        p.setColor(Color.RED);
+        float scaledSizeInPixels = textSize * 2;
+        p.setTypeface(Typeface.MONOSPACE);
+        p.setTextSize(scaledSizeInPixels);
+        c.drawText("TESTABCDE", 0,50,p);
+        //1.64
+        Log.w("Paint", "" + p.measureText("TESTABCDE"));
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out);
+        byte[] byteArray = out.toByteArray();
+        String s = DriverHelper.bytesToHex(byteArray);
+        frameDriver.sendFullFrame(s);
+
+    }
+    */
 
 }

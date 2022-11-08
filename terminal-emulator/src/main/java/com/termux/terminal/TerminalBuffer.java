@@ -1,5 +1,7 @@
 package com.termux.terminal;
 
+import android.util.Log;
+
 import java.util.Arrays;
 
 /**
@@ -63,6 +65,9 @@ public final class TerminalBuffer {
     }
 
     public String getSelectedText(int selX1, int selY1, int selX2, int selY2, boolean joinBackLines, boolean joinFullLines) {
+        if(selX1 > mColumns || selX2 > mColumns) {
+            return "";
+        }
         final StringBuilder builder = new StringBuilder();
         final int columns = mColumns;
 

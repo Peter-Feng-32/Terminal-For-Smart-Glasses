@@ -76,6 +76,7 @@ public class CaptioningService extends Service {
 
     public static TerminalEmulator terminalEmulator;
     public CaptioningDriver captioningDriver;
+    public static int textSize = 1;
 
     /** Captioning Library stuff */
 
@@ -205,7 +206,6 @@ public class CaptioningService extends Service {
         }
         //Send 1 row if toSend takes up 1 row, send 2 if it takes up 2, send 3 if it takes up 3...
         captioningDriver.redrawGlassesRows(0, NUM_ROWS);
-
     }
 
     public CaptioningService() {
@@ -223,7 +223,7 @@ public class CaptioningService extends Service {
     @RequiresApi(api = Build.VERSION_CODES.P)
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        captioningDriver = new CaptioningDriver(terminalEmulator, 100);
+        captioningDriver = new CaptioningDriver(terminalEmulator, textSize);
         initLanguageLocale();
         constructRepeatingRecognitionSession();
         startRecording();

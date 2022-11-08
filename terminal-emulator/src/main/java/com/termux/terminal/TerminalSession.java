@@ -103,8 +103,10 @@ public final class TerminalSession extends TerminalOutput {
     /** Inform the attached pty of the new size and reflow or initialize the emulator. */
     public void updateSize(int columns, int rows) {
         if (mEmulator == null) {
+            Log.w("TerminalSession UpdateSize", "initialize");
             initializeEmulator(columns, rows);
         } else {
+            Log.w("TerminalSession UpdateSize", "resize");
             JNI.setPtyWindowSize(mTerminalFileDescriptor, rows, columns);
             mEmulator.resize(columns, rows);
         }
