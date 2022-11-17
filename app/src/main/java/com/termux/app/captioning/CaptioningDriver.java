@@ -42,10 +42,13 @@ public class CaptioningDriver implements Serializable {
     int currTopRow;
     int fullFramesSentProcessing = 0;
     final int MAX_FRAMES_PROCESSING = 2;
-    final int FRAME_PROCESSING_TIME = 1500;
+    final int FRAME_PROCESSING_TIME = 700;
     //I think we need to keep track of the time between the current frame and the first frame.
     boolean frameDropped = false;
     long lastFrameProcessedTime = -1;
+
+    int captioningFramesProcessing = 0;
+
 
     ScheduledExecutorService scheduledExecutorService = Executors.newScheduledThreadPool(MAX_FRAMES_PROCESSING + 1);
     Runnable processFrame = () -> {
@@ -54,6 +57,17 @@ public class CaptioningDriver implements Serializable {
             if(frameDropped) {
                 frameDropped = false;
                 checkAndHandle(currTopRow);
+            }
+        }
+        lastFrameProcessedTime = System.currentTimeMillis();
+    };
+
+    Runnable processCaptioningFrame = () -> {
+        captioningFramesProcessing--;
+        if(captioningFramesProcessing == MAX_FRAMES_PROCESSING - 1) {
+            if(frameDropped) {
+                frameDropped = false;
+                redrawGlassesRows(0, 3);
             }
         }
         lastFrameProcessedTime = System.currentTimeMillis();
@@ -212,7 +226,13 @@ public class CaptioningDriver implements Serializable {
         boolean connected = frameDriver.sendFrameDelta(mySmallS, cellX + TerminalRenderer.leftOffsetTooz-3, cellY);
     }
 
-    public void redrawGlassesRows(int topRow, int numRows) {
+    public synchronized void redrawGlassesRows(int topRow, int numRows) {
+        if(captioningFramesProcessing == MAX_FRAMES_PROCESSING) {
+            //Log.w("ViewDriver", "FRAME DROPPED");
+            frameDropped = true;
+            return;
+        }
+
         updateReferences();
         //Render delta update bitmap
         Bitmap bitmap = Bitmap.createBitmap(400, 80*numRows, Bitmap.Config.ARGB_8888);
@@ -220,11 +240,24 @@ public class CaptioningDriver implements Serializable {
         captionRenderer.renderRowsToTooz(emulator, toozCanvas, topRow, -1,-1,-1,-1, numRows);
         //Send full bitmap to tooz
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-        bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out);
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 10, out);
         byte[] byteArray = out.toByteArray();
         String s = DriverHelper.bytesToHex(byteArray);
-        frameDriver.sendFullFrame(s);
+
+        scheduleProcessFrame();
+        frameDriver.sendRows(s);
     }
+
+    public void scheduleProcessFrame() {
+        if(captioningFramesProcessing == 0) {
+            lastFrameProcessedTime = System.currentTimeMillis();
+        }
+        int processingDelay = (int) ((captioningFramesProcessing + 1) * FRAME_PROCESSING_TIME - (System.currentTimeMillis() - lastFrameProcessedTime));
+        scheduledExecutorService.schedule(processCaptioningFrame, processingDelay, TimeUnit.MILLISECONDS);
+        captioningFramesProcessing++;
+        Log.w("ScheduleProcessFullFrame", "Done scheduling " + fullFramesSentProcessing + ' ' + processingDelay);
+    }
+
 
     public void clearGlasses() {
         updateReferences();

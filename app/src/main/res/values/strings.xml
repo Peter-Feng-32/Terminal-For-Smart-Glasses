@@ -210,4 +210,7 @@
     <string name="captioning_select_language_message">Select language. See  &lt;a href="https://cloud.google.com/speech-to-text/docs/languages">here&lt;/a> for more details.</string>
 
 
+    <!-- Daily Driver -->
+    <string name="daily_driver_fragment">Daily Driver Fragment</string>
+
 </resources>

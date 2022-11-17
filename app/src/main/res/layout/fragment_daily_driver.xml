@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".app.dailydriver.DailyDriverFragment">
+
+    <!-- TODO: Update blank fragment layout -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#FFFFFF"
+        android:text="@string/daily_driver_fragment"
+        android:textColor="#000000"
+        android:visibility="visible" />
+
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#FFFFFF"
+        android:text="Text Size"
+        android:textColor="#000000"
+        android:visibility="visible"
+        android:translationX="0px"
+        android:translationY="140px" />
+
+
+    <EditText
+        android:id="@+id/edit_text_size_daily_driver"
+        android:layout_width="wrap_content"
+        android:layout_height="100px"
+        android:ems="10"
+        android:inputType="number"
+        android:translationX="0px"
+        android:translationY="150px" />
+
+    <Button
+        android:id="@+id/btn_daily_driver_start"
+        android:layout_width="194dp"
+        android:layout_height="100px"
+        android:background="#000000"
+        android:text="Start Daily Driver"
+        android:textColor="#FFFFFF"
+        android:translationX="0px"
+        android:translationY="300px"
+        android:visibility="visible"></Button>
+
+</FrameLayout>

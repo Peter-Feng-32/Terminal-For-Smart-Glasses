@@ -88,6 +88,101 @@ public class FrameDriver {
         }
     }
 
+    public void sendRows(String imageHexString) {
+        //Connection code - see if we can optimize this later.
+        if(!isConnected()) {
+            currFrame = imageHexString;
+            if (!searching) searchAndConnect(SERIAL_PORT_UUID);
+        }
+        if(isConnected())
+        {
+            FrameBlock frameBlock = new FrameBlock(framesSent++);
+            frameBlock.setY(200);
+            byte[] headerBytes = generateHeader(imageHexString, frameBlock);
+            byte[] frameIDBlockBytes = frameBlock.serialize();
+            byte[] imageBytes = DriverHelper.hexStringToByteArray(imageHexString);
+            byte[] ending = {0x13};
+            byte[] byteStream = ArrayUtils.addAll(headerBytes, frameIDBlockBytes);
+            byteStream = ArrayUtils.addAll(byteStream, imageBytes);
+            byteStream = ArrayUtils.addAll(byteStream, ending);
+
+            byte[] finalByteStream = byteStream;
+            Thread t1 = new Thread(new Runnable() {
+                public void run()
+                {
+                    try {
+                        if (connectionOutputStream != null) {
+                            connectionOutputStream.write(finalByteStream);
+                            //Log.w("Sent Data", "Sent sendBuffer successfully");
+                            //Log.w("Image", imageHexString);
+                            framesSent++;
+                        } else {
+                            Log.w("Connection", "Not connected, can't send data.");
+                        }
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                        try {
+                            connectionOutputStream.close();
+                        } catch (IOException ioException) {
+                            ioException.printStackTrace();
+                        }
+                        if(!searching) searchAndConnect(SERIAL_PORT_UUID);
+                        return;
+                    }
+                }});
+            t1.start();
+        }
+    }
+
+
+    public void sendBox(String imageHexString, int x, int y) {
+        //Connection code - see if we can optimize this later.
+        if(!isConnected()) {
+            currFrame = imageHexString;
+            if (!searching) searchAndConnect(SERIAL_PORT_UUID);
+        }
+        if(isConnected())
+        {
+            FrameBlock frameBlock = new FrameBlock(framesSent++);
+            frameBlock.setX(x);
+            frameBlock.setY(y);
+            byte[] headerBytes = generateHeader(imageHexString, frameBlock);
+            byte[] frameIDBlockBytes = frameBlock.serialize();
+            byte[] imageBytes = DriverHelper.hexStringToByteArray(imageHexString);
+            byte[] ending = {0x13};
+            byte[] byteStream = ArrayUtils.addAll(headerBytes, frameIDBlockBytes);
+            byteStream = ArrayUtils.addAll(byteStream, imageBytes);
+            byteStream = ArrayUtils.addAll(byteStream, ending);
+
+            byte[] finalByteStream = byteStream;
+            Thread t1 = new Thread(new Runnable() {
+                public void run()
+                {
+                    try {
+                        if (connectionOutputStream != null) {
+                            connectionOutputStream.write(finalByteStream);
+                            //Log.w("Sent Data", "Sent sendBuffer successfully");
+                            //Log.w("Image", imageHexString);
+                            framesSent++;
+                        } else {
+                            Log.w("Connection", "Not connected, can't send data.");
+                        }
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                        try {
+                            connectionOutputStream.close();
+                        } catch (IOException ioException) {
+                            ioException.printStackTrace();
+                        }
+                        if(!searching) searchAndConnect(SERIAL_PORT_UUID);
+                        return;
+                    }
+                }});
+            t1.start();
+        }
+    }
+
+
     public boolean sendFrameDelta(String imageHexString, int x, int y) {
         if(!isConnected()) {
             return false;

@@ -23,6 +23,7 @@ import com.google.audio.NetworkConnectionChecker;
 import com.termux.R;
 import com.termux.app.TermuxActivity;
 import com.termux.app.TermuxService;
+import com.termux.app.dailydriver.DailyDriver;
 import com.termux.app.terminal.TermuxTerminalSessionClient;
 import com.termux.shared.termux.shell.command.runner.terminal.TermuxSession;
 import com.termux.terminal.TerminalBuffer;
@@ -83,7 +84,6 @@ import java.util.ArrayList;
 public class CaptioningFragment extends Fragment {
 
     /** Captioning Library stuff */
-
     private static final int PERMISSIONS_REQUEST_RECORD_AUDIO = 1;
     private static final String SHARE_PREF_API_KEY = "api_key";
     private static final String SHARE_PREF_CAPTIONING_TEXT_SIZE = "12";
@@ -245,12 +245,16 @@ public class CaptioningFragment extends Fragment {
             }
 
             Paint captionPaint = captionPaint(textSize);
-            terminalSession.updateSize(calculateColsInScreen(captionPaint), calculateRowsInScreen(captionPaint));
+            terminalSession.updateSize(calculateColsInScreen(captionPaint) - 1, calculateRowsInScreen(captionPaint));
             CaptioningService.textSize = textSize;
             CaptioningService.setTerminalEmulator(terminalSession.getEmulator());
             CaptioningDriver.captionRenderer = new CaptionRenderer(captionPaint);
             Log.w("CaptioningFragment", "columns: " + SCREEN_WIDTH/textSize + " rows: " + SCREEN_HEIGHT/textSize);
             Intent captioningIntent = new Intent(getActivity(), CaptioningService.class);
+
+            termuxActivity.getTermuxTerminalSessionClient().setDailyDriver(new DailyDriver(terminalSession.getEmulator(), textSize));
+
+
             getActivity().startService(captioningIntent);
             toggleButton();
         } else {

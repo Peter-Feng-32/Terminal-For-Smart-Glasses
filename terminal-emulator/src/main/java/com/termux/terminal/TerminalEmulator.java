@@ -366,7 +366,7 @@ public final class TerminalEmulator {
     }
 
     public void resize(int columns, int rows) {
-        Log.w("CaptioningFragment", "Resize " + columns + ' ' + rows);
+        Log.w("TerminalEmulator", "Resize " + columns + ' ' + rows);
         if (mRows == rows && mColumns == columns) {
             return;
         } else if (columns < 2 || rows < 2) {

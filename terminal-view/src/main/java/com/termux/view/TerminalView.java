@@ -99,7 +99,7 @@ public final class TerminalView extends View {
     public TerminalView(Context context, AttributeSet attributes) { // NO_UCD (unused code)
         super(context, attributes);
         glassesHelper = new FrameToGlasses(context);
-        viewDriver = new ViewDriver(this, rendererTooz, context);
+        //viewDriver = new ViewDriver(this, rendererTooz, context);
 
         mGestureRecognizer = new GestureAndScaleRecognizer(context, new GestureAndScaleRecognizer.Listener() {
 
@@ -1010,7 +1010,8 @@ public final class TerminalView extends View {
             We should in the future make this more robust(ie precalculate the rows and cols from captioning needed and set that here when we need to initialize the
             captioning emulator as well instead of using newColumns and newRows, which are essentially dummy values.
             */
-            if(mTermSession.mSessionName != "Captioning Session") {
+
+            if(mTermSession.mSessionName != "Captioning Session" && mTermSession.mSessionName != "Daily Driver Session") {
                 mTermSession.updateSize(newColumns, newRows);
             } else {
                 if(mTermSession.getEmulator() == null) {
@@ -1061,7 +1062,7 @@ public final class TerminalView extends View {
     public void invalidateGlassesFull() {
         // render the terminal view and highlight any selected text
         //viewDriver.redrawGlassesFull();
-        viewDriver.checkAndHandle(mTopRow);
+        //viewDriver.checkAndHandle(mTopRow);
 
         //How to prevent disconnects from sending too many frames at once?
         //When we send too many frames add a lockout to stop sending for x seconds?
@@ -1085,12 +1086,15 @@ public final class TerminalView extends View {
      //   Log.w("FULL FRAME", "" + mTopRow);
         //Call onDraw
 */
+
+
+
         invalidate();
 
     }
 
     public void invalidateGlassesDelta(int row, int col, int cursor){
-        viewDriver.checkAndHandle(mTopRow);
+        //viewDriver.checkAndHandle(mTopRow);
         // render the terminal view and highlight any selected text
         /*
         int[] sel = mDefaultSelectors;
