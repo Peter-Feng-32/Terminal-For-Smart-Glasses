@@ -33,23 +33,19 @@ public class DailyDriver {
     FrameDriver frameDriver;
     char[][] currScreenChars;
 
-
-    int framesProcessing = 0;
-    final int MAX_FRAMES_PROCESSING = 2;
     final int FULL_FRAME_PROCESSING_TIME = 1000;
     boolean frameDropped = false;
-    long lastFrameProcessedTime = -1;
+    final long MAX_FRAME_TIME_THRESHOLD = 1000;
+    long currTimeThreshold = -1;
+    int numFramesSent = 0;
 
-    ScheduledExecutorService scheduledExecutorService = Executors.newScheduledThreadPool(MAX_FRAMES_PROCESSING + 1);
-    private void processFrame() {
-        framesProcessing--;
-        if(framesProcessing == MAX_FRAMES_PROCESSING - 1) {
-            if(frameDropped) {
-                frameDropped = false;
-                //TODO: CHECK AND HANDLE EQUIVALENT
-            }
+    ScheduledExecutorService scheduledExecutorService = Executors.newScheduledThreadPool(20);
+    private synchronized void processFrame() {
+        numFramesSent--;
+        if(frameDropped) {
+            frameDropped = false;
+            processUpdate();
         }
-        lastFrameProcessedTime = System.currentTimeMillis();
     }
 
 
@@ -71,6 +67,13 @@ public class DailyDriver {
     }
 
     public synchronized void processUpdate() {
+        if(currTimeThreshold - System.currentTimeMillis() > MAX_FRAME_TIME_THRESHOLD || numFramesSent > 2) {
+            //Log.w("ViewDriver", "FRAME DROPPED");
+            frameDropped = true;
+            return;
+        }
+
+
         boolean[][] changes = findChanges();
         int[] bounds = getBoundingBox(changes);
         if(bounds[0] == 0) return;
@@ -95,7 +98,18 @@ public class DailyDriver {
 
         Log.w("DailyDriver", "Drive");
         Log.w("DailyDriver", "PreWidth: " + preWidth + " PreHeight: " + preHeight + " topRow: " + topRow + " bottomRow: " + bottomRow + " leftCol: " + leftCol + " rightCol: " + rightCol);
+
         frameDriver.sendBox(s, 0, preHeight);
+
+        numFramesSent++;
+        if(topRow == 0 && bottomRow == changes.length - 1) {
+            Log.w("DailyDriver", "Schedule Full Frame");
+            scheduleProcessFullFrame();
+        } else {
+            Log.w("DailyDriver", "Schedule Partial Frame, Proportion: " + Integer.max((int) (FULL_FRAME_PROCESSING_TIME * 0.1), (int) (FULL_FRAME_PROCESSING_TIME * (float) (bottomRow - topRow + 1) / changes.length ) ) );
+            scheduleProcessFrame( Integer.max((int) (FULL_FRAME_PROCESSING_TIME * 0.1), (int) (FULL_FRAME_PROCESSING_TIME * (float) (bottomRow - topRow + 1) / changes.length ) ) );
+        }
+
 
     }
 
@@ -183,18 +197,27 @@ public class DailyDriver {
 
     private void lockResizing(){};
 
-    public void scheduleProcessFullFrame(int delay) {
-        if(framesProcessing == 0) {
-            lastFrameProcessedTime = System.currentTimeMillis();
+    public synchronized void scheduleProcessFullFrame() {
+        if(System.currentTimeMillis() > currTimeThreshold) {
+            currTimeThreshold = System.currentTimeMillis();
         }
-        int processingDelay = (int) ((framesProcessing + 1) * FULL_FRAME_PROCESSING_TIME - (System.currentTimeMillis() - lastFrameProcessedTime));
+        currTimeThreshold += FULL_FRAME_PROCESSING_TIME;
+        long processingDelay = Long.max(0, (long) (currTimeThreshold - System.currentTimeMillis()));
         scheduledExecutorService.schedule(() -> processFrame(), processingDelay, TimeUnit.MILLISECONDS);
-        framesProcessing++;
-        Log.w("ScheduleProcessFullFrame", "Done scheduling " + framesProcessing + ' ' + processingDelay);
+
+    }
+
+    public synchronized void scheduleProcessFrame(int processingTime) {
+        if(System.currentTimeMillis() > currTimeThreshold) {
+            currTimeThreshold = System.currentTimeMillis();
+        }
+        currTimeThreshold += processingTime;
+        long processingDelay = Long.max(0, (long) (currTimeThreshold - System.currentTimeMillis()));
+        scheduledExecutorService.schedule(() -> processFrame(), processingDelay, TimeUnit.MILLISECONDS);
+
     }
 
     private void sendFullFrame() {
-        TerminalBuffer screen = terminalEmulator.getScreen();
         Bitmap bitmap = Bitmap.createBitmap(400, 640, Bitmap.Config.ARGB_8888);
         Canvas toozCanvas = new Canvas(bitmap);
         toozRenderer.renderToTooz(terminalEmulator, toozCanvas, 0, -1,-1,-1,-1);
@@ -206,13 +229,6 @@ public class DailyDriver {
         frameDriver.sendFullFrame(s);
     }
 
-    private int calculateColsInScreen(Paint paint) {
-        return (int)(SCREEN_WIDTH / paint.measureText("X"));
-    }
-
-    private int calculateRowsInScreen(Paint paint) {
-        return (SCREEN_HEIGHT - (int) Math.ceil(paint.getFontSpacing()) - (int) Math.ceil(paint.ascent())) / (int) Math.ceil(paint.getFontSpacing());
-    }
 
 
 
