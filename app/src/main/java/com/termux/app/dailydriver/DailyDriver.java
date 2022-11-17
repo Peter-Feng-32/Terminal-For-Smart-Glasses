@@ -16,6 +16,10 @@ import com.termux.terminal.TerminalSession;
 
 import org.apache.commons.io.output.ByteArrayOutputStream;
 
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+
 import smartglasses.DriverHelper;
 import smartglasses.FrameDriver;
 
@@ -28,6 +32,27 @@ public class DailyDriver {
     ToozRenderer toozRenderer;
     FrameDriver frameDriver;
     char[][] currScreenChars;
+
+
+    int framesProcessing = 0;
+    final int MAX_FRAMES_PROCESSING = 2;
+    final int FULL_FRAME_PROCESSING_TIME = 1000;
+    boolean frameDropped = false;
+    long lastFrameProcessedTime = -1;
+
+    ScheduledExecutorService scheduledExecutorService = Executors.newScheduledThreadPool(MAX_FRAMES_PROCESSING + 1);
+    private void processFrame() {
+        framesProcessing--;
+        if(framesProcessing == MAX_FRAMES_PROCESSING - 1) {
+            if(frameDropped) {
+                frameDropped = false;
+                //TODO: CHECK AND HANDLE EQUIVALENT
+            }
+        }
+        lastFrameProcessedTime = System.currentTimeMillis();
+    }
+
+
 
 
     public DailyDriver(TerminalEmulator terminalEmulator, int textSize) {
@@ -45,7 +70,7 @@ public class DailyDriver {
         lockResizing();
     }
 
-    public void processUpdate() {
+    public synchronized void processUpdate() {
         boolean[][] changes = findChanges();
         int[] bounds = getBoundingBox(changes);
         if(bounds[0] == 0) return;
@@ -108,6 +133,7 @@ public class DailyDriver {
             }
         }
 
+        /*
         for(int i = 0; i < terminalEmulator.mRows; i++) {
             String s = "";
             for(int j = 0; j < terminalEmulator.mColumns; j++) {
@@ -124,7 +150,7 @@ public class DailyDriver {
 
             }
             Log.w("DailyDriver", "currScreenChars: " + s);
-        }
+        }*/
 
         return changes;
     }
@@ -156,6 +182,16 @@ public class DailyDriver {
     }
 
     private void lockResizing(){};
+
+    public void scheduleProcessFullFrame(int delay) {
+        if(framesProcessing == 0) {
+            lastFrameProcessedTime = System.currentTimeMillis();
+        }
+        int processingDelay = (int) ((framesProcessing + 1) * FULL_FRAME_PROCESSING_TIME - (System.currentTimeMillis() - lastFrameProcessedTime));
+        scheduledExecutorService.schedule(() -> processFrame(), processingDelay, TimeUnit.MILLISECONDS);
+        framesProcessing++;
+        Log.w("ScheduleProcessFullFrame", "Done scheduling " + framesProcessing + ' ' + processingDelay);
+    }
 
     private void sendFullFrame() {
         TerminalBuffer screen = terminalEmulator.getScreen();
