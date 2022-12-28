@@ -24,6 +24,7 @@ import com.termux.R;
 import com.termux.app.TermuxActivity;
 import com.termux.app.TermuxService;
 import com.termux.app.terminal.TermuxTerminalSessionClient;
+import com.termux.app.tooz.ToozDriver;
 import com.termux.shared.termux.shell.command.runner.terminal.TermuxSession;
 import com.termux.terminal.TerminalBuffer;
 
@@ -83,7 +84,6 @@ import java.util.ArrayList;
 public class CaptioningFragment extends Fragment {
 
     /** Captioning Library stuff */
-
     private static final int PERMISSIONS_REQUEST_RECORD_AUDIO = 1;
     private static final String SHARE_PREF_API_KEY = "api_key";
     private static final String SHARE_PREF_CAPTIONING_TEXT_SIZE = "12";
@@ -120,7 +120,6 @@ public class CaptioningFragment extends Fragment {
         super.onCreate(savedInstanceState);
         initLanguageLocale();
     }
-
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
@@ -244,12 +243,15 @@ public class CaptioningFragment extends Fragment {
                 return;
             }
 
-            Paint captionPaint = captionPaint(textSize);
+            Paint captionPaint = makePaint(textSize);
             terminalSession.updateSize(calculateColsInScreen(captionPaint), calculateRowsInScreen(captionPaint));
             CaptioningService.textSize = textSize;
             CaptioningService.setTerminalEmulator(terminalSession.getEmulator());
-            CaptioningDriver.captionRenderer = new CaptionRenderer(captionPaint);
+            CaptioningService.setTerminalSession(terminalSession);
             Log.w("CaptioningFragment", "columns: " + SCREEN_WIDTH/textSize + " rows: " + SCREEN_HEIGHT/textSize);
+
+            termuxActivity.getTermuxTerminalSessionClient().setToozDriver(new ToozDriver(terminalSession.getEmulator(), textSize));
+
             Intent captioningIntent = new Intent(getActivity(), CaptioningService.class);
             getActivity().startService(captioningIntent);
             toggleButton();
@@ -259,7 +261,7 @@ public class CaptioningFragment extends Fragment {
         }
     }
 
-    private Paint captionPaint(int textSize) {
+    private Paint makePaint(int textSize) {
         Paint paint = new Paint();
         paint.setTypeface(Typeface.MONOSPACE);
         paint.setAntiAlias(true);

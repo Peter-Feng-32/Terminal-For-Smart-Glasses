@@ -18,11 +18,6 @@ public class TermuxTerminalSessionClientBase implements TerminalSessionClient {
     }
 
     @Override
-    public void onTextChangedRecorded(@NonNull TerminalSession changedSession, TerminalEmulatorChangeRecorder changes) {
-    }
-
-
-    @Override
     public void onTitleChanged(@NonNull TerminalSession updatedSession) {
     }
 

@@ -64,6 +64,7 @@ public class ToozDriver {
     }
 
     public synchronized void processUpdate() {
+        Log.w("Tooz", "Process Update");
         if(currTimeThreshold - System.currentTimeMillis() > MAX_FRAME_TIME_THRESHOLD || numFramesSent > 2) {
             //Log.w("ViewDriver", "FRAME DROPPED");
             frameDropped = true;

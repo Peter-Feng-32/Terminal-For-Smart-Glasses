@@ -125,6 +125,7 @@ public final class TerminalView extends View {
             @Override
             public boolean onSingleTapUp(MotionEvent event) {
                 if (mEmulator == null) return true;
+                if (mEmulator == null) return true;
 
                 if (isSelectingText()) {
                     stopTextSelectionMode();

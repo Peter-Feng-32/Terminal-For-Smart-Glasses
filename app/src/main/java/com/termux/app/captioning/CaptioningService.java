@@ -36,6 +36,7 @@ import com.google.audio.asr.TranscriptionResultUpdatePublisher;
 import com.google.audio.asr.TranscriptionResultUpdatePublisher.ResultSource;
 import com.google.audio.asr.cloud.CloudSpeechSessionFactory;
 import com.termux.terminal.TerminalEmulator;
+import com.termux.terminal.TerminalSession;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -44,7 +45,7 @@ import java.util.ArrayList;
 public class CaptioningService extends Service {
 
     public static TerminalEmulator terminalEmulator;
-    public CaptioningDriver captioningDriver;
+    public static TerminalSession terminalSession;
     public static int textSize = 1;
 
     /** Captioning Library stuff */
@@ -80,7 +81,6 @@ public class CaptioningService extends Service {
 
             if(updateType == TranscriptionResultUpdatePublisher.UpdateType.TRANSCRIPT_UPDATED) {
                 if(prevUpdateType == TranscriptionResultUpdatePublisher.UpdateType.TRANSCRIPT_FINALIZED) {
-                    captioningDriver.clearGlasses();
                     prevUpdateType = null;
                 }
                 handleCaption(formattedTranscript.toString());
@@ -110,7 +110,7 @@ public class CaptioningService extends Service {
         //Draw an image using the buffer.
 
         String escapeSeq = "\033[2J\033[H"; //Clear screen and move cursor to top left.
-        terminalEmulator.append(escapeSeq.getBytes(), escapeSeq.length());
+        terminalEmulator.append(escapeSeq.getBytes(), escapeSeq.getBytes(StandardCharsets.UTF_8).length);
         //Let's write only 3 rows.
         final int NUM_ROWS = 3;
         int ROW_LENGTH = terminalEmulator.mColumns;
@@ -171,18 +171,14 @@ public class CaptioningService extends Service {
         for(int i = 0; i < toSendArray.size(); i++) {
             String toSend = toSendArray.get(i);
             terminalEmulator.append(toSend.getBytes(StandardCharsets.UTF_8),toSend.getBytes(StandardCharsets.UTF_8).length);
-
         }
-        //Send 1 row if toSend takes up 1 row, send 2 if it takes up 2, send 3 if it takes up 3...
-        captioningDriver.redrawGlassesRows(0, NUM_ROWS);
+        terminalSession.notifyScreenUpdate();
     }
 
     public CaptioningService() {
-
     }
 
     @Override
-
     public IBinder onBind(Intent intent) {
         // TODO: Return the communication channel to the service.
         return null;
@@ -192,7 +188,6 @@ public class CaptioningService extends Service {
     @RequiresApi(api = Build.VERSION_CODES.P)
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        captioningDriver = new CaptioningDriver(terminalEmulator, textSize);
         initLanguageLocale();
         constructRepeatingRecognitionSession();
         startRecording();
@@ -275,6 +270,9 @@ public class CaptioningService extends Service {
 
     public static void setTerminalEmulator(TerminalEmulator emulator) {
         terminalEmulator = emulator;
+    }
+    public static void setTerminalSession(TerminalSession session) {
+        terminalSession = session;
     }
 
 }

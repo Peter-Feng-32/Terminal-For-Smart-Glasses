@@ -16,6 +16,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.termux.R;
+import com.termux.app.tooz.ToozDriver;
 import com.termux.shared.termux.shell.command.runner.terminal.TermuxSession;
 import com.termux.shared.termux.interact.TextInputDialogUtils;
 import com.termux.app.TermuxActivity;
@@ -47,8 +48,11 @@ public class TermuxTerminalSessionClient extends TermuxTerminalSessionClientBase
 
     private static final String LOG_TAG = "TermuxTerminalSessionClient";
 
+    private ToozDriver toozDriver;
+
     public TermuxTerminalSessionClient(TermuxActivity activity) {
         this.mActivity = activity;
+
     }
 
     /**
@@ -71,9 +75,12 @@ public class TermuxTerminalSessionClient extends TermuxTerminalSessionClientBase
             termuxSessionListNotifyUpdated();
         }
 
+
+
         // The current terminal session may have changed while being away, force
         // a refresh of the displayed terminal.
         mActivity.getTerminalView().onScreenUpdated();
+
     }
 
     /**
@@ -116,12 +123,16 @@ public class TermuxTerminalSessionClient extends TermuxTerminalSessionClientBase
         if (!mActivity.isVisible()) return;
 
         if (mActivity.getCurrentSession() == changedSession) mActivity.getTerminalView().onScreenUpdated();
+
+        if (mActivity.getCurrentSession() == changedSession && toozDriver != null) toozDriver.processUpdate();
+
     }
 
-    public void onTextChangedRecorded(@NonNull TerminalSession changedSession, TerminalEmulatorChangeRecorder changes) {
-        if (!mActivity.isVisible()) return;
 
-        if (mActivity.getCurrentSession() == changedSession) mActivity.getTerminalView().onScreenUpdated(changes);
+
+
+    public void setToozDriver(ToozDriver driver) {
+        toozDriver = driver;
     }
 
     @Override
