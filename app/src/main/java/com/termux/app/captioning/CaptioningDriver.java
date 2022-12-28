@@ -1,10 +1,8 @@
 package com.termux.app.captioning;
 
-import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
-import android.graphics.Paint;
 import android.graphics.Typeface;
 import android.os.Build;
 import android.util.Log;
@@ -15,7 +13,6 @@ import com.termux.terminal.TerminalBuffer;
 import com.termux.terminal.TerminalEmulator;
 import com.termux.terminal.TerminalRow;
 import com.termux.view.TerminalRenderer;
-import com.termux.view.TerminalView;
 
 import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.apache.commons.lang3.tuple.ImmutablePair;
@@ -27,9 +24,9 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import smartglasses.DriverHelper;
-import smartglasses.FrameDriver;
-import smartglasses.TerminalRendererTooz;
+import com.termux.app.tooz.DriverHelper;
+import com.termux.app.tooz.FrameDriver;
+import com.termux.app.tooz.TerminalRendererTooz;
 
 
 public class CaptioningDriver implements Serializable {
@@ -238,26 +235,5 @@ public class CaptioningDriver implements Serializable {
         String s = DriverHelper.bytesToHex(byteArray);
         frameDriver.sendFullFrame(s);
     }
-
-    /*
-    public void testTextSize(int textSize) {
-        Bitmap bitmap = Bitmap.createBitmap(400, 640, Bitmap.Config.ARGB_8888);
-        Canvas c = new Canvas(bitmap);
-        Paint p = new Paint();
-        p.setColor(Color.RED);
-        float scaledSizeInPixels = textSize * 2;
-        p.setTypeface(Typeface.MONOSPACE);
-        p.setTextSize(scaledSizeInPixels);
-        c.drawText("TESTABCDE", 0,50,p);
-        //1.64
-        Log.w("Paint", "" + p.measureText("TESTABCDE"));
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out);
-        byte[] byteArray = out.toByteArray();
-        String s = DriverHelper.bytesToHex(byteArray);
-        frameDriver.sendFullFrame(s);
-
-    }
-    */
 
 }

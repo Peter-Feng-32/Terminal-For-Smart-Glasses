@@ -1,4 +1,4 @@
-package smartglasses;
+package com.termux.app.tooz;
 
 import android.graphics.Canvas;
 import android.graphics.Paint;

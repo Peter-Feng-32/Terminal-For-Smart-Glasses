@@ -39,8 +39,6 @@ import com.termux.terminal.TerminalEmulatorChangeRecorder;
 import com.termux.terminal.TerminalSession;
 import com.termux.view.textselection.TextSelectionCursorController;
 
-import smartglasses.TerminalRendererTooz;
-import smartglasses.ViewDriver;
 
 /** View displaying and interacting with a {@link TerminalSession}. */
 public final class TerminalView extends View {
@@ -91,15 +89,9 @@ public final class TerminalView extends View {
     private static final String LOG_TAG = "TerminalView";
 
 
-    /** Necessities for smart-glasses delta rendering */
-    FrameToGlasses glassesHelper;
-    public ViewDriver viewDriver;
-    public TerminalRendererTooz rendererTooz;
 
     public TerminalView(Context context, AttributeSet attributes) { // NO_UCD (unused code)
         super(context, attributes);
-        glassesHelper = new FrameToGlasses(context);
-        viewDriver = new ViewDriver(this, rendererTooz, context);
 
         mGestureRecognizer = new GestureAndScaleRecognizer(context, new GestureAndScaleRecognizer.Listener() {
 
@@ -535,15 +527,12 @@ public final class TerminalView extends View {
     @RequiresApi(api = Build.VERSION_CODES.P)
     public void setTextSize(int textSize) {
         mRenderer = new TerminalRenderer(textSize, mRenderer == null ? Typeface.MONOSPACE : mRenderer.mTypeface);
-        rendererTooz = new TerminalRendererTooz(textSize, rendererTooz == null ? Typeface.MONOSPACE : rendererTooz.mTypeface);
         updateSize();
     }
 
     @RequiresApi(api = Build.VERSION_CODES.P)
     public void setTypeface(Typeface newTypeface) {
         mRenderer = new TerminalRenderer(mRenderer.mTextSize, newTypeface);
-        rendererTooz = new TerminalRendererTooz(rendererTooz.mTextSize, newTypeface);
-
         updateSize();
         Log.w("setTypeFace.invalidate", "test");
         invalidateGlassesFull();
@@ -1061,7 +1050,6 @@ public final class TerminalView extends View {
     public void invalidateGlassesFull() {
         // render the terminal view and highlight any selected text
         //viewDriver.redrawGlassesFull();
-        viewDriver.checkAndHandle(mTopRow);
 
         //How to prevent disconnects from sending too many frames at once?
         //When we send too many frames add a lockout to stop sending for x seconds?
@@ -1090,7 +1078,6 @@ public final class TerminalView extends View {
     }
 
     public void invalidateGlassesDelta(int row, int col, int cursor){
-        viewDriver.checkAndHandle(mTopRow);
         // render the terminal view and highlight any selected text
         /*
         int[] sel = mDefaultSelectors;

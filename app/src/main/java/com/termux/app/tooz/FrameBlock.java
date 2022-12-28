@@ -1,4 +1,4 @@
-package smartglasses;
+package com.termux.app.tooz;
 
 import java.nio.charset.StandardCharsets;
 

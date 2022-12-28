@@ -1,4 +1,4 @@
-package smartglasses;
+package com.termux.app.tooz;
 
 public class DriverHelper {
     private static final char[] HEX_ARRAY = "0123456789abcdef".toCharArray();

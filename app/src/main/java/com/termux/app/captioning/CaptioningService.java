@@ -4,23 +4,13 @@ import android.app.Service;
 import android.content.Intent;
 import android.os.Build;
 import android.os.IBinder;
-import android.os.Bundle;
 
 import androidx.annotation.RequiresApi;
-import androidx.fragment.app.Fragment;
 
 import android.util.Log;
-import android.view.LayoutInflater;
-import android.view.View;
-import android.view.ViewGroup;
-import android.widget.Button;
 
 import com.google.audio.CodecAndBitrate;
 import com.google.audio.NetworkConnectionChecker;
-import com.termux.R;
-import com.termux.app.TermuxActivity;
-import com.termux.terminal.TerminalBuffer;
-
 
 
 /** Captioning Libraries */
@@ -30,29 +20,12 @@ import static com.google.audio.asr.SpeechRecognitionModelOptions.SpecificModel.D
 import static com.google.audio.asr.SpeechRecognitionModelOptions.SpecificModel.VIDEO;
 import static com.google.audio.asr.TranscriptionResultFormatterOptions.TranscriptColoringStyle.NO_COLORING;
 
-import android.Manifest;
 import android.content.Context;
-import android.content.pm.PackageManager;
 import android.media.AudioFormat;
 import android.media.AudioRecord;
 import android.media.MediaRecorder;
-import android.os.Bundle;
 import android.preference.PreferenceManager;
-import androidx.core.app.ActivityCompat;
-import androidx.core.content.ContextCompat;
-import androidx.appcompat.app.AlertDialog;
-import android.text.Html;
-import android.text.InputType;
-import android.text.method.LinkMovementMethod;
-import android.view.View;
-import android.widget.AdapterView;
-import android.widget.AdapterView.OnItemSelectedListener;
-import android.widget.ArrayAdapter;
-import android.widget.EditText;
-import android.widget.LinearLayout;
-import android.widget.Spinner;
-import android.widget.TextView;
-import android.widget.Toast;
+
 import com.google.audio.asr.CloudSpeechSessionParams;
 import com.google.audio.asr.CloudSpeechStreamObserverParams;
 import com.google.audio.asr.RepeatingRecognitionSession;
@@ -63,13 +36,9 @@ import com.google.audio.asr.TranscriptionResultUpdatePublisher;
 import com.google.audio.asr.TranscriptionResultUpdatePublisher.ResultSource;
 import com.google.audio.asr.cloud.CloudSpeechSessionFactory;
 import com.termux.terminal.TerminalEmulator;
-import com.termux.terminal.TerminalSession;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-
-import smartglasses.TerminalRendererTooz;
-import smartglasses.ViewDriver;
 
 
 public class CaptioningService extends Service {
