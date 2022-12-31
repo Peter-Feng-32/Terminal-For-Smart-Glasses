@@ -76,20 +76,29 @@ public class CaptioningService extends Service {
     //My start-stop implementation
     private TranscriptionResultUpdatePublisher.UpdateType prevUpdateType;
 
+
+    CaptioningFormatter formatter = new CaptioningFormatter(terminalEmulator.mRows, terminalEmulator.mColumns);
+
+
     private final TranscriptionResultUpdatePublisher transcriptUpdater =
         (formattedTranscript, updateType) -> {
-
             if(updateType == TranscriptionResultUpdatePublisher.UpdateType.TRANSCRIPT_UPDATED) {
                 if(prevUpdateType == TranscriptionResultUpdatePublisher.UpdateType.TRANSCRIPT_FINALIZED) {
                     prevUpdateType = null;
+                    Log.w("FC", "Finalized");
+                    String escapeSeq = "\033[2J\033[H"; //Clear screen and move cursor to top left.
+                    formatter.resetSavedCaption();
+
+                    terminalEmulator.append(escapeSeq.getBytes(), escapeSeq.getBytes(StandardCharsets.UTF_8).length);
+
                 }
                 handleCaption(formattedTranscript.toString());
             }
             if(updateType == TranscriptionResultUpdatePublisher.UpdateType.TRANSCRIPT_FINALIZED) {
                 recognizer.resetAndClearTranscript();
                 prevUpdateType = TranscriptionResultUpdatePublisher.UpdateType.TRANSCRIPT_FINALIZED;
-            }
 
+            }
         };
 
     private Runnable readMicData =
@@ -107,71 +116,65 @@ public class CaptioningService extends Service {
         };
 
     private void handleCaption(String caption) {
-        //Draw an image using the buffer.
-
         String escapeSeq = "\033[2J\033[H"; //Clear screen and move cursor to top left.
         terminalEmulator.append(escapeSeq.getBytes(), escapeSeq.getBytes(StandardCharsets.UTF_8).length);
-        //Let's write only 3 rows.
-        final int NUM_ROWS = 3;
-        int ROW_LENGTH = terminalEmulator.mColumns;
-        final int MAX_LENGTH_TO_WRITE = ROW_LENGTH * (NUM_ROWS - 1);
 
-        String captionSubstring;
-        if(caption.length() < MAX_LENGTH_TO_WRITE) {
-            captionSubstring = caption;
-        } else {
-            int i = caption.length() - MAX_LENGTH_TO_WRITE;
-            while(caption.getBytes(StandardCharsets.UTF_8)[i] != ' ') {
-                i++;
+        /*
+        String formatted = formatter.process(caption);
+        if(formatted == "") return;
+
+        int index = formatter.getIndex();
+        int row = index / terminalEmulator.mColumns + 1;
+        int col = index % terminalEmulator.mColumns + 1;
+
+        Log.w("FC", "Index: " + index + " Columns: " + terminalEmulator.mColumns + " Row: " + row + " Col: " + col);
+        String moveToPosition = "\033[" + row + ";" + col + "f";
+        terminalEmulator.append(moveToPosition.getBytes(StandardCharsets.UTF_8), moveToPosition.getBytes(StandardCharsets.UTF_8).length);
+
+        int numRowsToDelete = (formatted.length() / terminalEmulator.mColumns) + 1;
+        String clearToRight = "\033[K";
+        terminalEmulator.append(clearToRight.getBytes(StandardCharsets.UTF_8), clearToRight.getBytes(StandardCharsets.UTF_8).length);
+
+        for(int i = 0; i < numRowsToDelete; i++) {
+            String moveToNextLine = "\033[E";
+            terminalEmulator.append(moveToNextLine.getBytes(StandardCharsets.UTF_8), moveToNextLine.getBytes(StandardCharsets.UTF_8).length);
+            String clearLine = "\033[2K";
+            terminalEmulator.append(clearLine.getBytes(StandardCharsets.UTF_8), clearLine.getBytes(StandardCharsets.UTF_8).length);
+        }
+
+        terminalEmulator.append(moveToPosition.getBytes(StandardCharsets.UTF_8), moveToPosition.getBytes(StandardCharsets.UTF_8).length);
+        terminalEmulator.append(formatted.getBytes(StandardCharsets.UTF_8),formatted.getBytes(StandardCharsets.UTF_8).length);
+        */
+
+        String formatted = formatter.process(caption);
+        for(int i = 0; i <= ((formatted.length() - 1)/ formatter.numChars); i++) {
+            Log.w("Test", "i: " + i + " numChars: " + formatter.numChars);
+            Log.w("Test", formatted);
+
+            for(int j = 0; j < Integer.min(formatter.rows, ((formatted.length() - 1) / formatter.cols + 1) - (i * formatter.rows) ); j++) {
+                Log.w("Test", "i: " + i + " j: " + j + " cols: " + formatter.cols + " numChars: " + formatter.numChars);
+                Log.w("Test", formatted);
+                Log.w("Test", "StartIndex: " + ((i * formatter.numChars) + (j * formatter.cols)) + " EndIndex: " + Integer.min((i * formatter.numChars) + (j+1) * formatter.cols, formatted.length()));
+                String substr = formatted.substring((i * formatter.numChars) + (j * formatter.cols), Integer.min((i * formatter.numChars) + (j+1) * formatter.cols, formatted.length()));
+                Log.w("Test", "Substr: " + substr);
+                terminalEmulator.append(substr.getBytes(StandardCharsets.UTF_8),substr.getBytes(StandardCharsets.UTF_8).length);
+                if(substr.length() < formatter.cols) {
+                    Log.w("Test", "CLEARTORIGHT");
+                    String clearToRight = "\033[0K"; //Clear screen to the right.
+                    terminalEmulator.append(clearToRight.getBytes(StandardCharsets.UTF_8),clearToRight.getBytes(StandardCharsets.UTF_8).length);
+                }
+                if(j < (formatter.rows - 1)) {
+                    String clearNextLine = "\033[1B\033[2K\033[1A"; //Clear next line
+                    terminalEmulator.append(clearNextLine.getBytes(StandardCharsets.UTF_8),clearNextLine.getBytes(StandardCharsets.UTF_8).length);
+                    String moveToNextLine = "\033[E"; //Move to next line
+                    terminalEmulator.append(moveToNextLine.getBytes(StandardCharsets.UTF_8),moveToNextLine.getBytes(StandardCharsets.UTF_8).length);
+                } else {
+                    String moveToTopLeft = "\033[H"; //Clear screen and move cursor to top left.
+                    terminalEmulator.append(moveToTopLeft.getBytes(StandardCharsets.UTF_8),moveToTopLeft.getBytes(StandardCharsets.UTF_8).length);
+                }
             }
-            captionSubstring = caption.substring(i);
         }
-        //Get only enough words to fit on 3 lines.
-        //Split substring into words
-        String[] splited = captionSubstring.split(" ");
-        ArrayList<String> toSendArray = new ArrayList<>();
-        int numCharsWritten = 0;
-        int numCharsWrittenInRow = 0;
-        int currIndex = 0;
-        while(currIndex < splited.length && numCharsWritten < MAX_LENGTH_TO_WRITE) {
-            String currWord = splited[currIndex];
-            if(currWord.length() > ROW_LENGTH) {
-                //If the word is bigger than a row, just send it.
-                toSendArray.add(currWord);
-                numCharsWritten += currWord.length();
-                numCharsWrittenInRow = (numCharsWrittenInRow + currWord.length()) % ROW_LENGTH;
-                if(numCharsWrittenInRow % ROW_LENGTH != 0) {
-                    toSendArray.add(" ");
-                    numCharsWrittenInRow = (numCharsWrittenInRow + 1) % ROW_LENGTH;
-                    numCharsWritten++;
-                }
-            } else {
-                int numCharsRemainingInRow = ROW_LENGTH - numCharsWrittenInRow;
-                if(currWord.length() > numCharsRemainingInRow) {
-                    //Move to next row.
-                    String spaces = "";
-                    for(int i = 0; i < numCharsRemainingInRow; i++) {
-                        spaces = spaces + " ";
-                        numCharsWritten++;
-                    }
-                    toSendArray.add(spaces);
-                    numCharsWrittenInRow = 0;
-                }
-                toSendArray.add(currWord);
-                numCharsWritten += currWord.length();
-                numCharsWrittenInRow = (numCharsWrittenInRow + currWord.length()) % ROW_LENGTH;
-                if(numCharsWrittenInRow % ROW_LENGTH != 0) {
-                    toSendArray.add(" ");
-                    numCharsWrittenInRow = (numCharsWrittenInRow + 1) % ROW_LENGTH;
-                    numCharsWritten++;
-                }
-            }
-            currIndex++;
-        }
-        for(int i = 0; i < toSendArray.size(); i++) {
-            String toSend = toSendArray.get(i);
-            terminalEmulator.append(toSend.getBytes(StandardCharsets.UTF_8),toSend.getBytes(StandardCharsets.UTF_8).length);
-        }
+
         terminalSession.notifyScreenUpdate();
     }
 
