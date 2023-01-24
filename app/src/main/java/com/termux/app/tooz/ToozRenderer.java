@@ -24,8 +24,9 @@ public class ToozRenderer {
     public float mTextSizeTooz;
     public float mFontWidthTooz;
     public int mFontLineSpacingTooz;
-    private int mFontAscentTooz;
+    public int mFontAscentTooz;
     public int mFontLineSpacingAndAscentTooz;
+    public int mFontLineDescentTooz;
     public static final int leftOffsetTooz = 20;
 
     private final float[] asciiMeasures = new float[127];
@@ -37,6 +38,7 @@ public class ToozRenderer {
         mFontLineSpacingTooz = (int) Math.ceil(mTextPaintTooz.getFontSpacing());
         mFontAscentTooz = (int) Math.ceil(mTextPaintTooz.ascent());
         mFontLineSpacingAndAscentTooz = mFontLineSpacingTooz + mFontAscentTooz;
+        mFontLineDescentTooz = (int) Math.ceil(mTextPaintTooz.descent());
         mFontWidthTooz = mTextPaintTooz.measureText("X");
 
         StringBuilder sb = new StringBuilder(" ");
@@ -404,10 +406,12 @@ public class ToozRenderer {
 
     public float getHeightBeforeTooz(int topRow, int currRow) {
         float heightOffset = mFontLineSpacingAndAscentTooz;
+        heightOffset = 0;
 
         for (int row = topRow; row < currRow; row++) {
             heightOffset += mFontLineSpacingTooz;
         }
+        Log.w("getHeightBeforeTooz", "" + mFontAscentTooz + " " +  mFontLineSpacingAndAscentTooz + " " + mFontLineSpacingTooz + " " + topRow + " " + currRow);
         return heightOffset;
 
     }
@@ -569,7 +573,7 @@ public class ToozRenderer {
         if (backColor != palette[TextStyle.COLOR_INDEX_BACKGROUND]) {
             // Only draw non-default background.
             mTextPaintTooz.setColor(backColor);
-            canvas.drawRect(left, y - mFontLineSpacingAndAscentTooz + mFontAscentTooz, right, y, mTextPaintTooz);
+            //canvas.drawRect(left, y - (2 * mFontLineSpacingAndAscentTooz), right, y, mTextPaintTooz);
         }
 
         if (cursor != 0) {
@@ -577,7 +581,7 @@ public class ToozRenderer {
             float cursorHeight = mFontLineSpacingAndAscentTooz - mFontAscentTooz;
             if (cursorStyle == TerminalEmulator.TERMINAL_CURSOR_STYLE_UNDERLINE) cursorHeight /= 4.;
             else if (cursorStyle == TerminalEmulator.TERMINAL_CURSOR_STYLE_BAR) right -= ((right - left) * 3) / 4.;
-            canvas.drawRect(left, y - cursorHeight, right, y, mTextPaintTooz);
+            //canvas.drawRect(left, y - cursorHeight, right, y, mTextPaintTooz);
         }
         if ((effect & TextStyle.CHARACTER_ATTRIBUTE_INVISIBLE) == 0) {
             if (dim) {
@@ -604,7 +608,8 @@ public class ToozRenderer {
 
             // The text alignment is the default Paint.Align.LEFT.
             //Log.w("Draw", "StartIndex: " + startCharIndex + " runWidth" + runWidthChars + " left: " + left +  " text: " + String.valueOf(text));
-            canvas.drawText(text, startCharIndex, runWidthChars, left, y - mFontLineSpacingAndAscentTooz, mTextPaintTooz);
+            //TODO: Trace the code to figure out why 2*fontlinespacingandascent works.
+            canvas.drawText(text, startCharIndex, runWidthChars, left, y - 2 * mFontLineSpacingAndAscentTooz, mTextPaintTooz);
             //canvas.drawText("abcdefghijk", 0, 5, left, y - mFontLineSpacingAndAscent, mTextPaint);
 
         }

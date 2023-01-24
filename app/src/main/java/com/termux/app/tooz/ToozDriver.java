@@ -52,7 +52,8 @@ public class ToozDriver {
         paint = new Paint();
         paint.setTypeface(Typeface.MONOSPACE);
         paint.setAntiAlias(true);
-        paint.setTextSize(textSize);
+        //Todo: Figure out why textsize needs to be slightly smaller, without relying on empirical testing.
+        paint.setTextSize(textSize - 5);
 
         toozRenderer = new ToozRenderer(paint);
         frameDriver = FrameDriver.getInstance();
@@ -80,9 +81,10 @@ public class ToozDriver {
         int bottomRow = bounds[2];
         int leftCol = bounds[3];
         int rightCol = bounds[4];
+
         //render
         Log.w("DailyDriver", "HeightOfBitmap " + (toozRenderer.mFontLineSpacingTooz) * (bottomRow - topRow + 1));
-        Bitmap bitmap = Bitmap.createBitmap(400, Integer.min(640, (toozRenderer.mFontLineSpacingTooz) * (bottomRow - topRow + 1)), Bitmap.Config.ARGB_8888);
+        Bitmap bitmap = Bitmap.createBitmap(400, Integer.min(640, toozRenderer.mFontLineDescentTooz + (toozRenderer.mFontLineSpacingTooz) * (bottomRow - topRow + 1)), Bitmap.Config.ARGB_8888);
         Canvas canvas = new Canvas(bitmap);
         toozRenderer.renderBoxToTooz(terminalEmulator, canvas, -1, -1,-1,-1, topRow, bottomRow + 1, leftCol, rightCol);
         //Send full bitmap to tooz
@@ -223,8 +225,5 @@ public class ToozDriver {
         String s = DriverHelper.bytesToHex(byteArray);
         frameDriver.sendFullFrame(s);
     }
-
-
-
 
 }
