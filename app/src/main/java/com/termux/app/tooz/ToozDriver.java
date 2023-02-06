@@ -45,9 +45,6 @@ public class ToozDriver {
         }
     }
 
-
-
-
     public ToozDriver(TerminalEmulator terminalEmulator, int textSize) {
         paint = new Paint();
         paint.setTypeface(Typeface.MONOSPACE);
@@ -64,6 +61,14 @@ public class ToozDriver {
         lockResizing();
     }
 
+    public void setTerminalEmulator(TerminalEmulator terminalEmulator) {
+        this.terminalEmulator = terminalEmulator;
+    }
+
+    public TerminalEmulator getTerminalEmulator() {
+        return terminalEmulator;
+    }
+
     public synchronized void processUpdate() {
         Log.w("Tooz", "Process Update");
         if(currTimeThreshold - System.currentTimeMillis() > MAX_FRAME_TIME_THRESHOLD || numFramesSent > 2) {
@@ -71,7 +76,6 @@ public class ToozDriver {
             frameDropped = true;
             return;
         }
-
 
         boolean[][] changes = findChanges();
         int[] bounds = getBoundingBox(changes);

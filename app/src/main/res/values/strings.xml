@@ -209,5 +209,8 @@
     <!-- Selecting language message. -->
     <string name="captioning_select_language_message">Select language. See  &lt;a href="https://cloud.google.com/speech-to-text/docs/languages">here&lt;/a> for more details.</string>
 
+    <string name="captioning_terminal_session_name">Captioning Session</string>
+    <string name="daily_driver_terminal_session_name">Daily Driver Session</string>
+
 
 </resources>

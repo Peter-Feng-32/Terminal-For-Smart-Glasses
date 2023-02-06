@@ -57,4 +57,15 @@
         android:translationY="300px"
         android:visibility="visible"></Button>
 
+    <Button
+        android:id="@+id/btn_run_daily_driver"
+        android:layout_width="194dp"
+        android:layout_height="100px"
+        android:background="#000000"
+        android:text="Start Daily Driver"
+        android:textColor="#FFFFFF"
+        android:translationX="0px"
+        android:translationY="500px"
+        android:visibility="visible"></Button>
+
 </FrameLayout>

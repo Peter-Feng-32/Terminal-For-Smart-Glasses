@@ -2,4 +2,8 @@
   <string name="paste_text">Paste</string>
   <string name="copy_text">Copy</string>
   <string name="text_selection_more">More…</string>
+
+    <string name="captioning_terminal_session_name">Captioning Session</string>
+    <string name="daily_driver_terminal_session_name">Daily Driver Session</string>
+
 </resources>

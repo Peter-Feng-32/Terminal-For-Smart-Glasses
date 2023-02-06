@@ -124,7 +124,13 @@ public class TermuxTerminalSessionClient extends TermuxTerminalSessionClientBase
 
         if (mActivity.getCurrentSession() == changedSession) mActivity.getTerminalView().onScreenUpdated();
 
-        if (mActivity.getCurrentSession() == changedSession && toozDriver != null) toozDriver.processUpdate();
+        if (mActivity.getCurrentSession() == changedSession && toozDriver != null) {
+            if(mActivity.getCurrentSession().getEmulator().equals(toozDriver.getTerminalEmulator())) {
+                toozDriver.processUpdate();
+            }
+        }
+
+
 
     }
 
