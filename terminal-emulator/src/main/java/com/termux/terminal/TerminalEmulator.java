@@ -630,6 +630,7 @@ public final class TerminalEmulator {
     }
 
     public void processCodePoint(int b) {
+
         switch (b) {
             case 0: // Null character (NUL, ^@). Do nothing.
                 break;
@@ -689,8 +690,10 @@ public final class TerminalEmulator {
                     // XXX: Ignore escape when reading device control sequence, since it may be part of string terminator.
                     return;
                 } else if (mEscapeState != ESC_OSC) {
+
                     startEscapeSequence();
                 } else {
+
                     doOsc(b);
                 }
                 break;

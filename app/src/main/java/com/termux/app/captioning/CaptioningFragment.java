@@ -1,5 +1,7 @@
 package com.termux.app.captioning;
 
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
 import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -10,8 +12,11 @@ import android.os.Bundle;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.RequiresApi;
+import androidx.core.app.NotificationCompat;
+import androidx.core.app.NotificationManagerCompat;
 import androidx.fragment.app.Fragment;
 
+import android.provider.Settings;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -23,6 +28,8 @@ import com.google.audio.NetworkConnectionChecker;
 import com.termux.R;
 import com.termux.app.TermuxActivity;
 import com.termux.app.TermuxService;
+import com.termux.app.dailydriver.NotificationDrawer;
+import com.termux.app.dailydriver.NotificationListener;
 import com.termux.app.terminal.TermuxTerminalSessionClient;
 import com.termux.app.tooz.ToozDriver;
 import com.termux.shared.termux.shell.command.runner.terminal.TermuxSession;
@@ -87,8 +94,9 @@ public class CaptioningFragment extends Fragment {
     private static final int PERMISSIONS_REQUEST_RECORD_AUDIO = 1;
     private static final String SHARE_PREF_API_KEY = "api_key";
     private static final String SHARE_PREF_CAPTIONING_TEXT_SIZE = "12";
-    public String CAPTIONING_TERMUX_SESSION_NAME = "";
-    public String DAILY_DRIVER_SESSION_NAME = "";
+    public String CAPTIONING_TERMUX_SESSION_NAME = "CAPTIONING_SESSION";
+    public String DAILY_DRIVER_SESSION_NAME = "DAILY_DRIVER_SESSION";
+    public String NOTIFICATION_SESSION_NAME = "NOTIFICATION_SESSION";
     private final int SCREEN_WIDTH = 400;
     private final int SCREEN_HEIGHT = 640;
 
@@ -98,6 +106,8 @@ public class CaptioningFragment extends Fragment {
     private TextView apiKeyEditView;
     private TextView textSizeTextView;
     private boolean captioningOn = false;
+
+    public static ToozDriver toozDriver;
 
     /**
      * Use this factory method to create a new instance of
@@ -154,9 +164,37 @@ public class CaptioningFragment extends Fragment {
             }
         });
 
+        Button testNotificationButton = view.findViewById(R.id.btn_test_notification);
+        testNotificationButton.setOnClickListener(new View.OnClickListener()
+        {
+            @Override
+            public void onClick(View v)
+            {
+                sendNotification();
+            }
+        });
+
+        Button notificationSessionButton = view.findViewById(R.id.btn_toggle_notifications);
+        notificationSessionButton.setOnClickListener(new View.OnClickListener()
+        {
+            @Override
+            public void onClick(View v)
+            {
+                startNotificationSession();
+            }
+        });
 
         CAPTIONING_TERMUX_SESSION_NAME = getActivity().getResources().getString(R.string.captioning_terminal_session_name);
         DAILY_DRIVER_SESSION_NAME = getActivity().getResources().getString(R.string.daily_driver_terminal_session_name);
+        NOTIFICATION_SESSION_NAME = getActivity().getResources().getString(R.string.notification_terminal_session_name);
+
+        notificationBuilder = new NotificationCompat.Builder(this.getActivity(), CHANNEL_ID)
+            .setSmallIcon(R.drawable.banner)
+            .setContentTitle("My notification")
+            .setContentText("Much longer text that cannot fit one line...")
+            .setStyle(new NotificationCompat.BigTextStyle()
+                .bigText("Much longer text that cannot fit one line..."))
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT);
 
         return view;
     }
@@ -176,6 +214,17 @@ public class CaptioningFragment extends Fragment {
                 toggleCaptioningButton();
             } else {
                 //Can't launch captioning without audio permissions
+                return;
+            }
+        });
+
+    /** Handle permissions */
+    private ActivityResultLauncher<String> requestNotificationPermissionLauncher =
+        registerForActivityResult(new ActivityResultContracts.RequestPermission(), isGranted -> {
+            if (isGranted) {
+                startNotificationListener();
+            } else {
+                //Can't use notifications
                 return;
             }
         });
@@ -216,7 +265,17 @@ public class CaptioningFragment extends Fragment {
                 }
             });
         }
+    }
 
+    public void startNotificationListener() {
+        //if(ContextCompat.checkSelfPermission(this.getContext(), Manifest.permission.BIND_NOTIFICATION_LISTENER_SERVICE) == PackageManager.PERMISSION_GRANTED) {
+            Intent notificationIntent = new Intent(getActivity(), NotificationListener.class);
+            getActivity().startService(notificationIntent);
+        //    Log.w("Test", "Notification Listener Started");
+        //} else {
+        //    Log.w("Test", "Notification Listener Not Started");
+        //    startActivity(new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS));
+        //}
     }
 
     public void startCaptioning() {
@@ -264,8 +323,8 @@ public class CaptioningFragment extends Fragment {
             CaptioningService.setTerminalSession(terminalSession);
             Log.w("CaptioningFragment", "columns: " + SCREEN_WIDTH/textSize + " rows: " + SCREEN_HEIGHT/textSize);
 
-            termuxActivity.getTermuxTerminalSessionClient().setToozDriver(new ToozDriver(terminalSession.getEmulator(), textSize));
-
+            toozDriver = new ToozDriver(terminalSession.getEmulator(), textSize);
+            termuxActivity.getTermuxTerminalSessionClient().setToozDriver(toozDriver);
             Intent captioningIntent = new Intent(getActivity(), CaptioningService.class);
             getActivity().startService(captioningIntent);
             toggleCaptioningButton();
@@ -275,8 +334,8 @@ public class CaptioningFragment extends Fragment {
         }
     }
 
-
     public void startDailyDriver() {
+        //startNotificationListener();
         Log.w("Start", "Daily Driver");
         TermuxActivity termuxActivity = (TermuxActivity) getActivity();
         TermuxTerminalSessionClient termuxTerminalSessionClient = termuxActivity.getTermuxTerminalSessionClient();
@@ -312,11 +371,58 @@ public class CaptioningFragment extends Fragment {
 
         Paint toozPaint = makePaint(textSize);
         terminalSession.updateSize(calculateColsInScreen(toozPaint), calculateRowsInScreen(toozPaint));
-
-        termuxActivity.getTermuxTerminalSessionClient().setToozDriver(new ToozDriver(terminalSession.getEmulator(), textSize));
+        toozDriver = new ToozDriver(terminalSession.getEmulator(), textSize);
+        termuxActivity.getTermuxTerminalSessionClient().setToozDriver(toozDriver);
 
     }
 
+
+    public void startNotificationSession() {
+        Log.w("Start", "Notification Session");
+        TermuxActivity termuxActivity = (TermuxActivity) getActivity();
+        TermuxTerminalSessionClient termuxTerminalSessionClient = termuxActivity.getTermuxTerminalSessionClient();
+        TermuxService termuxService = termuxActivity.getTermuxService();
+
+        TerminalSession terminalSession = null;
+        for(int i = 0; i < termuxService.getTermuxSessionsSize(); i++) {
+            TermuxSession termuxSession = termuxService.getTermuxSession(i);
+            if(termuxSession.getTerminalSession().mSessionName == NOTIFICATION_SESSION_NAME) {
+                terminalSession = termuxSession.getTerminalSession();
+            }
+        }
+        if(terminalSession == null) {
+            termuxTerminalSessionClient.addNewSessionWithoutSwitching(false, NOTIFICATION_SESSION_NAME);
+        }
+        for(int i = 0; i < termuxService.getTermuxSessionsSize(); i++) {
+            TermuxSession termuxSession = termuxService.getTermuxSession(i);
+            if(termuxSession.getTerminalSession().mSessionName == NOTIFICATION_SESSION_NAME) {
+                terminalSession = termuxSession.getTerminalSession();
+            }
+        }
+        if(terminalSession == null) {
+            termuxActivity.showToast("Too many Terminal Sessions open, close one!", false);
+            return;
+        }
+
+        int textSize;
+        try {
+            textSize = Integer.parseInt(textSizeTextView.getText().toString());
+        } catch(Exception e) {
+            Log.w("DailyDriverFragment", "Failed to parse text size.");
+            return;
+        }
+
+        Paint toozPaint = makePaint(textSize);
+        terminalSession.updateSize(calculateColsInScreen(toozPaint), calculateRowsInScreen(toozPaint));
+        toozDriver = new ToozDriver(terminalSession.getEmulator(), textSize);
+
+        NotificationListener.setTerminalSession(terminalSession);
+        NotificationListener.setToozDriver(toozDriver);
+        NotificationListener.setTerminalSessionClient(termuxActivity.getTermuxTerminalSessionClient());
+        NotificationListener.setEnabled(true);
+        startNotificationListener();
+
+    }
 
     private Paint makePaint(int textSize) {
         Paint paint = new Paint();
@@ -333,8 +439,6 @@ public class CaptioningFragment extends Fragment {
     private int calculateRowsInScreen(Paint paint) {
         return (SCREEN_HEIGHT - (int) Math.ceil(paint.getFontSpacing()) - (int) Math.ceil(paint.ascent())) / (int) Math.ceil(paint.getFontSpacing());
     }
-
-
 
     public void stopCaptioning() {
         captioningOn = false;
@@ -366,6 +470,36 @@ public class CaptioningFragment extends Fragment {
     /** Gets the API key from shared preference. */
     private static String getTextSize(Context context) {
         return PreferenceManager.getDefaultSharedPreferences(context).getString(SHARE_PREF_CAPTIONING_TEXT_SIZE, "");
+    }
+
+
+    /** Notification Testing **/
+
+    String CHANNEL_ID = "Notification Channel";
+    int notificationId = 0;
+    NotificationCompat.Builder notificationBuilder;
+
+    private void createNotificationChannel() {
+        // Create the NotificationChannel, but only on API 26+ because
+        // the NotificationChannel class is new and not in the support library
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            CharSequence name = "TestNotificationChannel";
+            String description = "Channel to test notifications";
+            int importance = NotificationManager.IMPORTANCE_DEFAULT;
+            NotificationChannel channel = new NotificationChannel(CHANNEL_ID, name, importance);
+            channel.setDescription(description);
+            // Register the channel with the system; you can't change the importance
+            // or other notification behaviors after this
+            NotificationManager notificationManager = getActivity().getSystemService(NotificationManager.class);
+            notificationManager.createNotificationChannel(channel);
+        }
+    }
+
+    public void sendNotification() {
+        createNotificationChannel();
+        NotificationManagerCompat notificationManager = NotificationManagerCompat.from(this.getActivity());
+        notificationManager.notify(notificationId, notificationBuilder.build());
+        notificationId++;
     }
 
 }

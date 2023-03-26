@@ -8,12 +8,19 @@ import android.content.Context;
 import android.os.ParcelUuid;
 import android.util.Log;
 
+import com.termux.app.terminal.TermuxTerminalSessionClient;
+
 import org.apache.commons.lang3.ArrayUtils;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.Set;
 import java.util.UUID;
 
@@ -26,7 +33,13 @@ public class FrameDriver {
     boolean searching = false;
     String SERIAL_PORT_UUID= "00001101-0000-1000-8000-00805f9b34fb";
     int framesSent = 0;
+    int messageCount = 1;
     String currFrame;
+
+    Thread gyroReader;
+    double prevGyroReading = 0;
+    double currGyroReading = 0;
+
 
     private static FrameDriver frameDriver;
 
@@ -182,7 +195,6 @@ public class FrameDriver {
         }
     }
 
-
     public boolean sendFrameDelta(String imageHexString, int x, int y) {
         if(!isConnected()) {
             return false;
@@ -224,26 +236,141 @@ public class FrameDriver {
                     }
                 }});
             t1.start();
-/*
-            try {
-                if (connectionOutputStream != null) {
-                    connectionOutputStream.write(byteStream);
-                    //Log.w("Sent Data", "Sent sendBuffer successfully");
-                    //Log.w("Image", imageHexString);
-                    framesSent++;
-                } else {
-                    Log.w("Connection", "Not connected, can't send data.");
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
-                if(!searching) searchAndConnect(MY_UUID);
-                return false;
-            }*/
-
-
             return true;
         }
     }
+
+
+
+    public void requestGyroData(int millisecondsDelay, TermuxTerminalSessionClient termuxTerminalSessionClient) {
+        if(!isConnected()) {
+            if (!searching) searchAndConnect(SERIAL_PORT_UUID);
+        }
+
+        if(isConnected()) {
+            Date date = new java.util.Date();
+            String time = new SimpleDateFormat("yyyy-MM-dd").format(date) + "T" + new SimpleDateFormat("hh:mm:ss.SSS").format(date) + "-0400"; //Currently hardcoded to EST timezone
+            String requestBlock = String.format("{\"time\":\"" + time + "\",\"sois\":[{\"name\":\"gyroscope\",\"delay\":%d}],\"variables\":[]}", millisecondsDelay);
+
+            byte[] headerBytes = {0x12};
+            byte[] messageCountBytes = ByteBuffer.allocate(4).putInt(0, messageCount++).array();
+            byte[] idBytes = {0x04};
+            byte[] timestampBytes =  ByteBuffer.allocate(9).putLong(0, System.currentTimeMillis()).array();
+            byte[] sizeOfRequestBytes = {(byte) requestBlock.length(),0, 0, 0, 0};
+            byte[] requestBlockBytes = requestBlock.getBytes(StandardCharsets.UTF_8);
+            byte[] endingBytes = {0x13};
+
+            byte[] byteStream = ArrayUtils.addAll(headerBytes, messageCountBytes);
+            byteStream = ArrayUtils.addAll(byteStream, idBytes);
+            byteStream = ArrayUtils.addAll(byteStream, timestampBytes);
+            byteStream = ArrayUtils.addAll(byteStream, sizeOfRequestBytes);
+            byteStream = ArrayUtils.addAll(byteStream, requestBlockBytes);
+            byteStream = ArrayUtils.addAll(byteStream, endingBytes);
+
+
+            byte[] finalByteStream = byteStream;
+            Thread t1 = new Thread(new Runnable() {
+                public void run()
+                {
+                    try {
+                        if (connectionOutputStream != null) {
+                            connectionOutputStream.write(finalByteStream);
+                            Log.w("Connection", "Sent Data");
+
+                        } else {
+                            Log.w("Connection", "Not connected, can't send data.");
+                        }
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                        try {
+                            connectionOutputStream.close();
+                        } catch (IOException ioException) {
+                            ioException.printStackTrace();
+                        }
+                        if(!searching) searchAndConnect(SERIAL_PORT_UUID);
+                        return;
+                    }
+                }});
+            t1.start();
+
+
+
+            gyroReader = new Thread(new Runnable() {
+                public void run()
+                {
+                    while(true) {
+                        Log.w("RequestGyroData", "Looping");
+                        try {
+                            byte[] input = new byte[300];
+                            if (connectionInputStream != null) {
+                                connectionInputStream.read(input);
+                            }
+                            Log.w("RequestGyroData", "Bytes Read: " + DriverHelper.bytesToHex(input));
+                            String str = new String(input, StandardCharsets.UTF_8);
+                            Log.w("RequestGyroData", "String Read: " + str);
+
+                            //Search for message inside input
+                            int numOpeningBrackets = 0;
+                            int numClosingBrackets = 0;
+                            int i = 2;
+                            int j;
+                            while(i < str.length() && numOpeningBrackets == 0) {
+                                if(str.charAt(i) == 's' && str.charAt(i-1) == '\"' && str.charAt(i-2) == '{') {
+                                    numOpeningBrackets++;
+                                    i -= 2;
+                                    break;
+                                }
+                                i++;
+                            }
+                            for(j = i + 1; j < str.length(); j++) {
+                                if(str.charAt(j) == '{') numOpeningBrackets++;
+                                if(str.charAt(j) == '}') numClosingBrackets++;
+                                if(numClosingBrackets == numOpeningBrackets) {
+                                    j++;
+                                    break;
+                                }
+                            }
+
+                            if(i >= str.length()) continue;
+                            Log.w("RequestGyroData", "Indices: " + i + " " + j);
+                            String message = str.substring(i, j);
+                            Log.w("RequestGyroData", "Message: " + message);
+                            try {
+                                JSONObject messageJson = new JSONObject(message);
+                                double gyroReadingX = messageJson.getJSONArray("sensors").getJSONObject(0).getJSONObject("reading").getJSONObject("gyroscope").getDouble("x");
+                                prevGyroReading = currGyroReading;
+                                currGyroReading = gyroReadingX;
+                                    Log.w("Request Gyro Data", "Double X: " + gyroReadingX);
+                            }catch (JSONException err){
+                                Log.d("Error", err.toString());
+                            }
+
+
+                            if(currGyroReading - prevGyroReading > 1.0) {
+                                currGyroReading = 0;
+                                prevGyroReading = 0;
+                                break;
+                            }
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                            try {
+                                connectionInputStream.close();
+                            } catch (IOException ioException) {
+                                ioException.printStackTrace();
+                            }
+                            if(!searching) searchAndConnect(SERIAL_PORT_UUID);
+                            return;
+                        }
+                    }
+
+
+                    termuxTerminalSessionClient.setToozEnabled(true);
+
+                }});
+            gyroReader.start();
+        }
+    }
+
 
     private byte[] generateHeader(String jpegStream, FrameBlock frameBlock) {
         byte[] frameIDBlock = frameBlock.serialize();

@@ -10,62 +10,108 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:background="#FFFFFF"
-        android:text="@string/captioning_fragment"
+        android:text="@string/control_menu"
         android:textColor="#000000"
-        android:visibility="visible" />
+        android:visibility="visible"
+        android:textSize="20sp"
+        />
 
-
+    <TextView
+        android:id="@+id/api_key_text_view"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Captioning API Key"
+        android:translationY="20dp" />
 
     <EditText
         android:id="@+id/captioning_api_key_input"
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:duplicateParentState="false"
+        android:layout_height="40dp"
         android:ems="10"
         android:inputType="textPersonName"
         android:textColor="#000000"
-        android:translationY="30px" />
+        android:textSize="10sp"
+        android:translationY="28dp" />
 
     <TextView
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:background="#FFFFFF"
-        android:text="Text Size"
-        android:textColor="#000000"
-        android:visibility="visible"
-        android:translationX="0px"
-        android:translationY="140px" />
-
+        android:id="@+id/font_size_text_view"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Font Size"
+        android:translationY="65dp" />
 
     <EditText
         android:id="@+id/editTextSize"
-        android:layout_width="wrap_content"
-        android:layout_height="100px"
+        android:layout_width="68dp"
+        android:layout_height="40dp"
         android:ems="10"
         android:inputType="number"
+        android:textSize="10sp"
         android:translationX="0px"
-        android:translationY="150px" />
+        android:translationY="73dp" />
 
     <Button
         android:id="@+id/btn_test_captioning"
-        android:layout_width="194dp"
-        android:layout_height="100px"
+        android:layout_width="120dp"
+        android:layout_height="50dp"
         android:background="#000000"
         android:text="Start Captioning"
         android:textColor="#FFFFFF"
+        android:textSize="10sp"
+        android:paddingRight="0dp"
+        android:paddingLeft="0dp"
+        android:minHeight="0dp"
+        android:minWidth="0dp"
         android:translationX="0px"
-        android:translationY="300px"
+        android:translationY="110dp"
         android:visibility="visible"></Button>
 
     <Button
         android:id="@+id/btn_run_daily_driver"
-        android:layout_width="194dp"
-        android:layout_height="100px"
+        android:layout_width="120dp"
+        android:layout_height="50dp"
         android:background="#000000"
         android:text="Start Daily Driver"
         android:textColor="#FFFFFF"
+        android:textSize="10sp"
+        android:paddingRight="0dp"
+        android:paddingLeft="0dp"
+        android:minHeight="0dp"
+        android:minWidth="0dp"
+        android:translationX="120dp"
+        android:translationY="110dp"
+        android:visibility="visible"></Button>
+
+    <Button
+        android:id="@+id/btn_test_notification"
+        android:layout_width="120dp"
+        android:layout_height="50dp"
+        android:background="#000000"
+        android:text="Send Notification"
+        android:textColor="#FFFFFF"
         android:translationX="0px"
-        android:translationY="500px"
+        android:translationY="170dp"
+        android:textSize="10sp"
+        android:paddingRight="0dp"
+        android:paddingLeft="0dp"
+        android:minHeight="0dp"
+        android:minWidth="0dp"
+        android:visibility="visible"></Button>
+
+    <Button
+        android:id="@+id/btn_toggle_notifications"
+        android:layout_width="120dp"
+        android:layout_height="50dp"
+        android:background="#000000"
+        android:text="Enable Notifications"
+        android:textColor="#FFFFFF"
+        android:translationX="120dp"
+        android:translationY="170dp"
+        android:textSize="10sp"
+        android:paddingRight="0dp"
+        android:paddingLeft="0dp"
+        android:minHeight="0dp"
+        android:minWidth="0dp"
         android:visibility="visible"></Button>
 
 </FrameLayout>
