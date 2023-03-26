@@ -57,6 +57,9 @@ public class TermuxTerminalSessionClient extends TermuxTerminalSessionClientBase
 
     }
 
+    public ToozDriver getToozDriver() {
+        return toozDriver;
+    }
     public boolean getEnabled() {
         return toozEnabled;
     }

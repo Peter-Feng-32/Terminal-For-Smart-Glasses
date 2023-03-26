@@ -364,6 +364,9 @@ public class FrameDriver {
                     }
 
 
+                    if(termuxTerminalSessionClient.getToozDriver() != null) {
+                        termuxTerminalSessionClient.getToozDriver().initializeScreenTracking();
+                    }
                     termuxTerminalSessionClient.setToozEnabled(true);
 
                 }});

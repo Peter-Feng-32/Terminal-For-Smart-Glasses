@@ -122,7 +122,7 @@ public class ToozDriver {
 
     }
 
-    private void initializeScreenTracking() {
+    public void initializeScreenTracking() {
         Log.w("DailyDriver", "Initialize Screen Tracking");
         TerminalBuffer screen = terminalEmulator.getScreen();
 
@@ -237,5 +237,6 @@ public class ToozDriver {
         scheduledExecutorService.schedule(() -> sendFullFrame(), delay, TimeUnit.MILLISECONDS);
 
     }
+
 
 }
