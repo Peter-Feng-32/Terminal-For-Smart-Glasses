@@ -10,6 +10,7 @@ import android.graphics.Typeface;
 import android.media.AudioAttributes;
 import android.media.SoundPool;
 import android.text.TextUtils;
+import android.util.Log;
 import android.widget.ListView;
 
 import androidx.annotation.NonNull;
@@ -131,13 +132,19 @@ public class TermuxTerminalSessionClient extends TermuxTerminalSessionClientBase
 
     @Override
     public void onTextChanged(@NonNull TerminalSession changedSession) {
-        if (!mActivity.isVisible()) return;
+
+        Log.w("Test", "Processing Tooz onTextChanged " + mActivity.isVisible());
+
+
+        //if (!mActivity.isVisible()) return;
 
         if (mActivity.getCurrentSession() == changedSession) mActivity.getTerminalView().onScreenUpdated();
+        Log.w("Test", "Processing Tooz ontextchanged");
 
         if (mActivity.getCurrentSession() == changedSession && toozDriver != null) {
             if(mActivity.getCurrentSession().getEmulator().equals(toozDriver.getTerminalEmulator())) {
                 if(toozEnabled) {
+                    Log.w("Test", "Processing Tooz Enabled");
                     toozDriver.processUpdate();
                 }
             }

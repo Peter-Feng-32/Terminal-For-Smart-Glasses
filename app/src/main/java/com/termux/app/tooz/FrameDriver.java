@@ -298,7 +298,8 @@ public class FrameDriver {
             gyroReader = new Thread(new Runnable() {
                 public void run()
                 {
-                    while(true) {
+                    boolean done = false;
+                    while(!done) {
                         Log.w("RequestGyroData", "Looping");
                         try {
                             byte[] input = new byte[300];
@@ -346,10 +347,10 @@ public class FrameDriver {
                             }
 
 
-                            if(currGyroReading - prevGyroReading > 1.0) {
+                            if(currGyroReading - prevGyroReading > 0.5 || currGyroReading - prevGyroReading < -0.5 ) {
                                 currGyroReading = 0;
                                 prevGyroReading = 0;
-                                break;
+                                done = true;
                             }
                         } catch (IOException e) {
                             e.printStackTrace();
@@ -359,6 +360,10 @@ public class FrameDriver {
                                 ioException.printStackTrace();
                             }
                             if(!searching) searchAndConnect(SERIAL_PORT_UUID);
+                            if(termuxTerminalSessionClient.getToozDriver() != null) {
+                                termuxTerminalSessionClient.getToozDriver().initializeScreenTracking();
+                            }
+                            termuxTerminalSessionClient.setToozEnabled(true);
                             return;
                         }
                     }

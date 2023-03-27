@@ -462,7 +462,7 @@ public final class TerminalView extends View {
         mEmulator.clearScrollCounter();
         Log.w("OnScreenUpdated", "Test");
         invalidateGlassesFull();
-        if (mAccessibilityEnabled) setContentDescription(getText());
+        //if (mAccessibilityEnabled) setContentDescription(getText());
     }
 
     public void onScreenUpdated(TerminalEmulatorChangeRecorder changes) {

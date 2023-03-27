@@ -66,9 +66,14 @@ public class NotificationListener extends NotificationListenerService {
         terminalSession.getEmulator().append(title.getBytes(StandardCharsets.UTF_8), title.getBytes(StandardCharsets.UTF_8).length);
         terminalSession.getEmulator().append(escapeSeqNextLine.getBytes(), escapeSeqNextLine.getBytes(StandardCharsets.UTF_8).length);
         terminalSession.getEmulator().append(text.getBytes(StandardCharsets.UTF_8), text.getBytes(StandardCharsets.UTF_8).length);
-        if(prevEnabled) toozDriver.sendFullFrame();
-        else toozDriver.processUpdate();
-        toozDriver.requestGyroData(400, termuxTerminalSessionClient);
+        if(prevEnabled) {
+            Log.w("TEST", "PREV ENABLED");
+            toozDriver.sendFullFrame();
+            toozDriver.requestGyroData(400, termuxTerminalSessionClient);
+        }
+        else {
+            toozDriver.processUpdate();
+        }
 
     }
 
