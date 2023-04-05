@@ -382,4 +382,8 @@ public final class TerminalSession extends TerminalOutput {
 
     }
 
+    public TerminalSessionClient getmClient() {
+        return mClient;
+    }
+
 }

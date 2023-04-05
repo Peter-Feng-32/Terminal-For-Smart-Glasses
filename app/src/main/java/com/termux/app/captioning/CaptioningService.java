@@ -35,6 +35,7 @@ import com.google.audio.asr.TranscriptionResultFormatterOptions;
 import com.google.audio.asr.TranscriptionResultUpdatePublisher;
 import com.google.audio.asr.TranscriptionResultUpdatePublisher.ResultSource;
 import com.google.audio.asr.cloud.CloudSpeechSessionFactory;
+import com.termux.app.terminal.TermuxTerminalSessionClient;
 import com.termux.terminal.TerminalEmulator;
 import com.termux.terminal.TerminalSession;
 
@@ -76,10 +77,7 @@ public class CaptioningService extends Service {
     //My start-stop implementation
     private TranscriptionResultUpdatePublisher.UpdateType prevUpdateType;
 
-
     CaptioningFormatter formatter = new CaptioningFormatter(terminalEmulator.mRows, terminalEmulator.mColumns);
-
-
     private final TranscriptionResultUpdatePublisher transcriptUpdater =
         (formattedTranscript, updateType) -> {
             if(updateType == TranscriptionResultUpdatePublisher.UpdateType.TRANSCRIPT_UPDATED) {
@@ -119,33 +117,6 @@ public class CaptioningService extends Service {
         String escapeSeq = "\033[2J\033[H"; //Clear screen and move cursor to top left.
         terminalEmulator.append(escapeSeq.getBytes(), escapeSeq.getBytes(StandardCharsets.UTF_8).length);
 
-        /*
-        String formatted = formatter.process(caption);
-        if(formatted == "") return;
-
-        int index = formatter.getIndex();
-        int row = index / terminalEmulator.mColumns + 1;
-        int col = index % terminalEmulator.mColumns + 1;
-
-        Log.w("FC", "Index: " + index + " Columns: " + terminalEmulator.mColumns + " Row: " + row + " Col: " + col);
-        String moveToPosition = "\033[" + row + ";" + col + "f";
-        terminalEmulator.append(moveToPosition.getBytes(StandardCharsets.UTF_8), moveToPosition.getBytes(StandardCharsets.UTF_8).length);
-
-        int numRowsToDelete = (formatted.length() / terminalEmulator.mColumns) + 1;
-        String clearToRight = "\033[K";
-        terminalEmulator.append(clearToRight.getBytes(StandardCharsets.UTF_8), clearToRight.getBytes(StandardCharsets.UTF_8).length);
-
-        for(int i = 0; i < numRowsToDelete; i++) {
-            String moveToNextLine = "\033[E";
-            terminalEmulator.append(moveToNextLine.getBytes(StandardCharsets.UTF_8), moveToNextLine.getBytes(StandardCharsets.UTF_8).length);
-            String clearLine = "\033[2K";
-            terminalEmulator.append(clearLine.getBytes(StandardCharsets.UTF_8), clearLine.getBytes(StandardCharsets.UTF_8).length);
-        }
-
-        terminalEmulator.append(moveToPosition.getBytes(StandardCharsets.UTF_8), moveToPosition.getBytes(StandardCharsets.UTF_8).length);
-        terminalEmulator.append(formatted.getBytes(StandardCharsets.UTF_8),formatted.getBytes(StandardCharsets.UTF_8).length);
-        */
-
         String formatted = formatter.process(caption);
         for(int i = 0; i <= ((formatted.length() - 1)/ formatter.numChars); i++) {
             Log.w("Test", "i: " + i + " numChars: " + formatter.numChars);
@@ -181,6 +152,7 @@ public class CaptioningService extends Service {
     public CaptioningService() {
     }
 
+
     @Override
     public IBinder onBind(Intent intent) {
         // TODO: Return the communication channel to the service.
@@ -194,6 +166,7 @@ public class CaptioningService extends Service {
         initLanguageLocale();
         constructRepeatingRecognitionSession();
         startRecording();
+        ((TermuxTerminalSessionClient) terminalSession.getmClient()).getToozDriver().clearScreen();
         return super.onStartCommand(intent, flags, startId);
     }
 
@@ -203,7 +176,6 @@ public class CaptioningService extends Service {
         if(audioRecord != null) {
             audioRecord.stop();
         }
-
     }
 
     /** Captioning Functions */

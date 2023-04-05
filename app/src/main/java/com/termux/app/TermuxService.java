@@ -8,17 +8,20 @@ import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.content.res.Resources;
+import android.graphics.Paint;
 import android.net.wifi.WifiManager;
 import android.os.Binder;
 import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.PowerManager;
+import android.util.Log;
 import android.widget.ArrayAdapter;
 
 import androidx.annotation.Nullable;
 
 import com.termux.R;
+import com.termux.app.captioning.CaptioningFragment;
 import com.termux.app.settings.properties.TermuxAppSharedProperties;
 import com.termux.app.terminal.TermuxTerminalSessionClient;
 import com.termux.app.utils.PluginUtils;
@@ -543,6 +546,10 @@ public final class TermuxService extends Service implements AppShell.AppShellCli
 
         // No need to recreate the activity since it likely just started and theme should already have applied
         TermuxActivity.updateTermuxActivityStyling(this, false);
+
+
+        Log.w("TermuxService", CaptioningFragment.getInstance().testString);
+        CaptioningFragment.getInstance().startNotificationSession();
 
         return newTermuxSession;
     }

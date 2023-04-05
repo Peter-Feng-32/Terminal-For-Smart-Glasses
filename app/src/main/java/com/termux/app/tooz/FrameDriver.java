@@ -1,16 +1,22 @@
 package com.termux.app.tooz;
 
 
+import static android.content.Context.POWER_SERVICE;
+
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
 import android.content.Context;
 import android.os.ParcelUuid;
+import android.os.PowerManager;
 import android.util.Log;
+import android.util.Pair;
 
 import com.termux.app.terminal.TermuxTerminalSessionClient;
+import com.termux.view.ToozConstants;
 
 import org.apache.commons.lang3.ArrayUtils;
+import org.checkerframework.checker.units.qual.A;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -20,9 +26,14 @@ import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
+import java.util.ArrayDeque;
 import java.util.Date;
+import java.util.Deque;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 public class FrameDriver {
     InputStream connectionInputStream;
@@ -36,10 +47,10 @@ public class FrameDriver {
     int messageCount = 1;
     String currFrame;
 
-    Thread gyroReader;
-    double prevGyroReading = 0;
-    double currGyroReading = 0;
+    final int SLIDING_WINDOW_SIZE = 40;
 
+
+    Context context;
 
     private static FrameDriver frameDriver;
 
@@ -54,6 +65,169 @@ public class FrameDriver {
             frameDriver = new FrameDriver();
         }
         return frameDriver;
+    }
+
+    public class AccelerometerRunnable implements Runnable {
+        private int status;
+        private TermuxTerminalSessionClient termuxTerminalSessionClient;
+        private ToozDriver notificationDriver;
+
+        public AccelerometerRunnable(TermuxTerminalSessionClient termuxTerminalSessionClient, ToozDriver notificationDriver){
+            this.status= 0;
+            this.termuxTerminalSessionClient = termuxTerminalSessionClient;
+            this.notificationDriver = notificationDriver;
+        }
+
+        @Override
+        public void run()
+        {
+            Log.w("FrameDriver", "Running Accelerometer Reader");
+            boolean done = false;
+            try{
+                if (connectionInputStream != null) {
+                    Log.w("FrameDriver", "Connection Input Stream Not Null");
+                    Log.w("FrameDriver", "Skipped " + connectionInputStream.skip(connectionInputStream.available()) + "bytes \n");
+                } else {
+                    Log.w("FrameDriver", "Connection Input Stream Null");
+
+                }
+            }catch (Exception e) {
+                e.printStackTrace();
+            }
+
+            Deque<Pair<Long, Double>> accelerometerData;
+            Deque<Pair<Long, Double>> accelerometerMaxDeque;
+            Deque<Pair<Long, Double>> accelerometerMinDeque;
+            long accelerometerMessagesReceived;
+
+            accelerometerData = new ArrayDeque<>();
+            accelerometerMaxDeque = new ArrayDeque<>();
+            accelerometerMinDeque = new ArrayDeque<>();
+            accelerometerMessagesReceived = 0;
+
+            byte[] bytesToToss = new byte[100000];
+            if (connectionInputStream != null) {
+                try {
+                    connectionInputStream.read(bytesToToss);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+
+            while(!done) {
+                try {
+
+                    if(Thread.interrupted()) {
+                        this.status = -2;
+                        throw new InterruptedException();
+                    }
+
+                    byte[] input = new byte[300];
+                    if (connectionInputStream != null) {
+                        connectionInputStream.read(input);
+                    }
+                    String str = new String(input, StandardCharsets.UTF_8);
+                    //Search for message inside input
+                    int numOpeningBrackets = 0;
+                    int numClosingBrackets = 0;
+                    int i = 2;
+                    int j;
+                    while(i < str.length() && numOpeningBrackets == 0) {
+                        if(str.charAt(i) == 's' && str.charAt(i-1) == '\"' && str.charAt(i-2) == '{') {
+                            numOpeningBrackets++;
+                            i -= 2;
+                            break;
+                        }
+                        i++;
+                    }
+                    for(j = i + 1; j < str.length(); j++) {
+                        if(str.charAt(j) == '{') numOpeningBrackets++;
+                        if(str.charAt(j) == '}') numClosingBrackets++;
+                        if(numClosingBrackets == numOpeningBrackets) {
+                            j++;
+                            break;
+                        }
+                    }
+                    if(i >= str.length()) continue;
+                    Log.w("RequestGyroData", "Indices: " + i + " " + j);
+                    String message = str.substring(i, j);
+                    Log.w("RequestGyroData", "Message: " + message);
+                    try {
+                        JSONObject messageJson = new JSONObject(message);
+                        double accelerationReadingX = messageJson.getJSONArray("sensors").getJSONObject(0).getJSONObject("reading").getJSONObject("acceleration").getDouble("x");
+                        double accelerationReadingY = messageJson.getJSONArray("sensors").getJSONObject(0).getJSONObject("reading").getJSONObject("acceleration").getDouble("y");
+                        double accelerationReadingZ = messageJson.getJSONArray("sensors").getJSONObject(0).getJSONObject("reading").getJSONObject("acceleration").getDouble("z");
+                        double angle = Math.atan2(accelerationReadingY,  accelerationReadingZ);
+                        Log.w("Request Accelerometer Data", "Angle: " + Math.toDegrees(angle));
+
+                                /*Run a Sliding Window Maximum and a Sliding Window Minimum, compute the difference between
+                                the max and min angles and use this to determine if we should dismiss the notification.
+                                 */
+                        accelerometerMessagesReceived++;
+                        if(accelerometerData.size() < SLIDING_WINDOW_SIZE) {
+                            accelerometerData.addLast(new Pair<Long, Double>(accelerometerMessagesReceived, angle));
+                            while(accelerometerMaxDeque.size() > 0 && accelerometerMaxDeque.getLast().second <= angle) {
+                                accelerometerMaxDeque.removeLast();
+                            }
+                            accelerometerMaxDeque.addLast(new Pair<Long, Double>(accelerometerMessagesReceived, angle));
+                            while(accelerometerMinDeque.size() > 0 && accelerometerMinDeque.getLast().second >= angle) {
+                                accelerometerMinDeque.removeLast();
+                            }
+                            accelerometerMinDeque.addLast(new Pair<Long, Double>(accelerometerMessagesReceived, angle));
+                        } else {
+                            accelerometerData.addLast(new Pair<Long, Double>(accelerometerMessagesReceived, angle));
+                            if(accelerometerMaxDeque.getFirst().first == accelerometerData.getFirst().first) {
+                                accelerometerMaxDeque.removeFirst();
+                            }
+                            while(accelerometerMaxDeque.size() > 0 && accelerometerMaxDeque.getLast().second <= angle) {
+                                accelerometerMaxDeque.removeLast();
+                            }
+                            accelerometerMaxDeque.addLast(new Pair<Long, Double>(accelerometerMessagesReceived, angle));
+                            if(accelerometerMinDeque.getFirst().first == accelerometerData.getFirst().first) {
+                                accelerometerMinDeque.removeFirst();
+                            }
+                            while(accelerometerMinDeque.size() > 0 && accelerometerMinDeque.getLast().second >= angle) {
+                                accelerometerMinDeque.removeLast();
+                            }
+                            accelerometerMinDeque.addLast(new Pair<Long, Double>(accelerometerMessagesReceived, angle));
+                            accelerometerData.removeFirst();
+                        }
+
+                        if(Math.toDegrees(accelerometerMaxDeque.getFirst().second - accelerometerMinDeque.getFirst().second) > 15) {
+                            Log.w("Request Accelerometer Data", "Greatest Difference in angle: " + Math.toDegrees(accelerometerMaxDeque.getFirst().second - accelerometerMinDeque.getFirst().second));
+                            done = true;
+                        }
+
+                    }catch (JSONException err){
+                        Log.d("Error", err.toString());
+                    }
+
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    try {
+                        connectionInputStream.close();
+                    } catch (IOException ioException) {
+                        ioException.printStackTrace();
+                    }
+                    if(!searching) searchAndConnect(SERIAL_PORT_UUID);
+                    return;
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                    done = true;
+                }
+
+            }
+        }
+
+        public int getStatus() {
+            return status;
+        }
+    }
+
+
+
+    public void setContext(Context c) {
+        context = c;
     }
 
     public void sendFullFrame(String imageHexString) {
@@ -147,7 +321,6 @@ public class FrameDriver {
         }
     }
 
-
     public void sendBox(String imageHexString, int x, int y) {
         //Connection code - see if we can optimize this later.
         if(!isConnected()) {
@@ -195,62 +368,14 @@ public class FrameDriver {
         }
     }
 
-    public boolean sendFrameDelta(String imageHexString, int x, int y) {
-        if(!isConnected()) {
-            return false;
-        } else {
-            FrameBlock frameBlock = new FrameBlock(framesSent++);
-            frameBlock.setX(x);
-            frameBlock.setY(y);
-            frameBlock.setOverlay(true);
-            byte[] headerBytes = generateHeader(imageHexString, frameBlock);
-            byte[] frameIDBlockBytes = frameBlock.serialize();
-            byte[] imageBytes = DriverHelper.hexStringToByteArray(imageHexString);
-            byte[] ending = {0x13};
-            byte[] byteStream = ArrayUtils.addAll(headerBytes, frameIDBlockBytes);
-            byteStream = ArrayUtils.addAll(byteStream, imageBytes);
-            byteStream = ArrayUtils.addAll(byteStream, ending);
-
-            byte[] finalByteStream = byteStream;
-            Thread t1 = new Thread(new Runnable() {
-                public void run()
-                {
-                    try {
-                        if (connectionOutputStream != null) {
-                            connectionOutputStream.write(finalByteStream);
-                            //Log.w("Sent Data", "Sent sendBuffer successfully");
-                            //Log.w("Image", imageHexString);
-                            framesSent++;
-                        } else {
-                            Log.w("Connection", "Not connected, can't send data.");
-                        }
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                        try {
-                            connectionOutputStream.close();
-                        } catch (IOException ioException) {
-                            ioException.printStackTrace();
-                        }
-                        if(!searching) searchAndConnect(SERIAL_PORT_UUID);
-                        return;
-                    }
-                }});
-            t1.start();
-            return true;
-        }
-    }
-
-
-
-    public void requestGyroData(int millisecondsDelay, TermuxTerminalSessionClient termuxTerminalSessionClient) {
+    public int requestAccelerometerData(int millisecondsDelay, int timeout, TermuxTerminalSessionClient termuxTerminalSessionClient, ToozDriver notificationDriver) {
         if(!isConnected()) {
             if (!searching) searchAndConnect(SERIAL_PORT_UUID);
         }
-
         if(isConnected()) {
             Date date = new java.util.Date();
             String time = new SimpleDateFormat("yyyy-MM-dd").format(date) + "T" + new SimpleDateFormat("hh:mm:ss.SSS").format(date) + "-0400"; //Currently hardcoded to EST timezone
-            String requestBlock = String.format("{\"time\":\"" + time + "\",\"sois\":[{\"name\":\"gyroscope\",\"delay\":%d}],\"variables\":[]}", millisecondsDelay);
+            String requestBlock = String.format("{\"time\":\"" + time + "\",\"sois\":[{\"name\":\"acceleration\",\"delay\":%d}],\"variables\":[]}", millisecondsDelay);
 
             byte[] headerBytes = {0x12};
             byte[] messageCountBytes = ByteBuffer.allocate(4).putInt(0, messageCount++).array();
@@ -267,7 +392,6 @@ public class FrameDriver {
             byteStream = ArrayUtils.addAll(byteStream, requestBlockBytes);
             byteStream = ArrayUtils.addAll(byteStream, endingBytes);
 
-
             byte[] finalByteStream = byteStream;
             Thread t1 = new Thread(new Runnable() {
                 public void run()
@@ -276,7 +400,6 @@ public class FrameDriver {
                         if (connectionOutputStream != null) {
                             connectionOutputStream.write(finalByteStream);
                             Log.w("Connection", "Sent Data");
-
                         } else {
                             Log.w("Connection", "Not connected, can't send data.");
                         }
@@ -293,90 +416,125 @@ public class FrameDriver {
                 }});
             t1.start();
 
+            AccelerometerRunnable accelerationReader = new AccelerometerRunnable(termuxTerminalSessionClient, notificationDriver);
+            Thread accelerationThread = new Thread(accelerationReader);
+            ScheduledExecutorService worker = Executors.newSingleThreadScheduledExecutor();
 
+            Runnable runnable = new Runnable() {
+                public void run() {
+                    // Do something
+                    if(accelerationThread.isAlive()) {
+                        accelerationThread.interrupt();
+                    }
+                }
+            };
+            if(timeout > 0) {
+                worker.schedule(runnable, timeout, TimeUnit.MILLISECONDS);
+            }
+            accelerationThread.start();
 
-            gyroReader = new Thread(new Runnable() {
+            try {
+                accelerationThread.join();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+            //If there is a tooz session currently running:
+            //If the screen is on or the session is captioning, reinitialize screen tracking and send frame.
+            PowerManager powerManager = (PowerManager) context.getSystemService(POWER_SERVICE);
+            boolean screenInteractive = powerManager.isInteractive();
+            if(termuxTerminalSessionClient.getToozDriver() != null) {
+                if(screenInteractive || (termuxTerminalSessionClient.getCurrentSession().mSessionName != null && termuxTerminalSessionClient.getCurrentSession().mSessionName.equals(ToozConstants.CAPTIONING_TERMUX_SESSION_NAME))) {
+                    termuxTerminalSessionClient.getToozDriver().initializeScreenTracking();
+                } else {
+                    termuxTerminalSessionClient.getToozDriver().clearScreen();
+                }
+            } else {
+                notificationDriver.clearScreen();
+            }
+            termuxTerminalSessionClient.setToozEnabled(true);
+
+            Log.w("Read Acceleration", "Status: " + accelerationReader.getStatus());
+            return accelerationReader.getStatus();
+        }
+        return -1;
+    }
+
+    public int requestAccelerometerDataSilent(int millisecondsDelay, int timeout, TermuxTerminalSessionClient termuxTerminalSessionClient, ToozDriver notificationDriver) {
+        if(!isConnected()) {
+            if (!searching) searchAndConnect(SERIAL_PORT_UUID);
+        }
+        if(isConnected()) {
+            Date date = new java.util.Date();
+            String time = new SimpleDateFormat("yyyy-MM-dd").format(date) + "T" + new SimpleDateFormat("hh:mm:ss.SSS").format(date) + "-0400"; //Currently hardcoded to EST timezone
+            String requestBlock = String.format("{\"time\":\"" + time + "\",\"sois\":[{\"name\":\"acceleration\",\"delay\":%d}],\"variables\":[]}", millisecondsDelay);
+
+            byte[] headerBytes = {0x12};
+            byte[] messageCountBytes = ByteBuffer.allocate(4).putInt(0, messageCount++).array();
+            byte[] idBytes = {0x04};
+            byte[] timestampBytes =  ByteBuffer.allocate(9).putLong(0, System.currentTimeMillis()).array();
+            byte[] sizeOfRequestBytes = {(byte) requestBlock.length(),0, 0, 0, 0};
+            byte[] requestBlockBytes = requestBlock.getBytes(StandardCharsets.UTF_8);
+            byte[] endingBytes = {0x13};
+
+            byte[] byteStream = ArrayUtils.addAll(headerBytes, messageCountBytes);
+            byteStream = ArrayUtils.addAll(byteStream, idBytes);
+            byteStream = ArrayUtils.addAll(byteStream, timestampBytes);
+            byteStream = ArrayUtils.addAll(byteStream, sizeOfRequestBytes);
+            byteStream = ArrayUtils.addAll(byteStream, requestBlockBytes);
+            byteStream = ArrayUtils.addAll(byteStream, endingBytes);
+
+            byte[] finalByteStream = byteStream;
+            Thread t1 = new Thread(new Runnable() {
                 public void run()
                 {
-                    boolean done = false;
-                    while(!done) {
-                        Log.w("RequestGyroData", "Looping");
-                        try {
-                            byte[] input = new byte[300];
-                            if (connectionInputStream != null) {
-                                connectionInputStream.read(input);
-                            }
-                            Log.w("RequestGyroData", "Bytes Read: " + DriverHelper.bytesToHex(input));
-                            String str = new String(input, StandardCharsets.UTF_8);
-                            Log.w("RequestGyroData", "String Read: " + str);
-
-                            //Search for message inside input
-                            int numOpeningBrackets = 0;
-                            int numClosingBrackets = 0;
-                            int i = 2;
-                            int j;
-                            while(i < str.length() && numOpeningBrackets == 0) {
-                                if(str.charAt(i) == 's' && str.charAt(i-1) == '\"' && str.charAt(i-2) == '{') {
-                                    numOpeningBrackets++;
-                                    i -= 2;
-                                    break;
-                                }
-                                i++;
-                            }
-                            for(j = i + 1; j < str.length(); j++) {
-                                if(str.charAt(j) == '{') numOpeningBrackets++;
-                                if(str.charAt(j) == '}') numClosingBrackets++;
-                                if(numClosingBrackets == numOpeningBrackets) {
-                                    j++;
-                                    break;
-                                }
-                            }
-
-                            if(i >= str.length()) continue;
-                            Log.w("RequestGyroData", "Indices: " + i + " " + j);
-                            String message = str.substring(i, j);
-                            Log.w("RequestGyroData", "Message: " + message);
-                            try {
-                                JSONObject messageJson = new JSONObject(message);
-                                double gyroReadingX = messageJson.getJSONArray("sensors").getJSONObject(0).getJSONObject("reading").getJSONObject("gyroscope").getDouble("x");
-                                prevGyroReading = currGyroReading;
-                                currGyroReading = gyroReadingX;
-                                    Log.w("Request Gyro Data", "Double X: " + gyroReadingX);
-                            }catch (JSONException err){
-                                Log.d("Error", err.toString());
-                            }
-
-
-                            if(currGyroReading - prevGyroReading > 0.5 || currGyroReading - prevGyroReading < -0.5 ) {
-                                currGyroReading = 0;
-                                prevGyroReading = 0;
-                                done = true;
-                            }
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                            try {
-                                connectionInputStream.close();
-                            } catch (IOException ioException) {
-                                ioException.printStackTrace();
-                            }
-                            if(!searching) searchAndConnect(SERIAL_PORT_UUID);
-                            if(termuxTerminalSessionClient.getToozDriver() != null) {
-                                termuxTerminalSessionClient.getToozDriver().initializeScreenTracking();
-                            }
-                            termuxTerminalSessionClient.setToozEnabled(true);
-                            return;
+                    try {
+                        if (connectionOutputStream != null) {
+                            connectionOutputStream.write(finalByteStream);
+                            Log.w("Connection", "Sent Data");
+                        } else {
+                            Log.w("Connection", "Not connected, can't send data.");
                         }
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                        try {
+                            connectionOutputStream.close();
+                        } catch (IOException ioException) {
+                            ioException.printStackTrace();
+                        }
+                        if(!searching) searchAndConnect(SERIAL_PORT_UUID);
+                        return;
                     }
-
-
-                    if(termuxTerminalSessionClient.getToozDriver() != null) {
-                        termuxTerminalSessionClient.getToozDriver().initializeScreenTracking();
-                    }
-                    termuxTerminalSessionClient.setToozEnabled(true);
-
                 }});
-            gyroReader.start();
+            t1.start();
+
+            AccelerometerRunnable accelerationReader = new AccelerometerRunnable(termuxTerminalSessionClient, notificationDriver);
+            Thread accelerationThread = new Thread(accelerationReader);
+            ScheduledExecutorService worker = Executors.newSingleThreadScheduledExecutor();
+
+            Runnable runnable = new Runnable() {
+                public void run() {
+                    // Do something
+                    if(accelerationThread.isAlive()) {
+                        accelerationThread.interrupt();
+                    }
+                }
+            };
+            if(timeout > 0) {
+                worker.schedule(runnable, timeout, TimeUnit.MILLISECONDS);
+            }
+            accelerationThread.start();
+
+            try {
+                accelerationThread.join();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+            Log.w("Read Acceleration", "Status: " + accelerationReader.getStatus());
+            return accelerationReader.getStatus();
         }
+        return -1;
     }
 
 

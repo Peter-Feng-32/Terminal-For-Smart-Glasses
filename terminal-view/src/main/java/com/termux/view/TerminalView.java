@@ -1000,7 +1000,7 @@ public final class TerminalView extends View {
             We should in the future make this more robust(ie precalculate the rows and cols from captioning needed and set that here when we need to initialize the
             captioning emulator as well instead of using newColumns and newRows, which are essentially dummy values.
             */
-            if(mTermSession.mSessionName != getResources().getString(R.string.captioning_terminal_session_name) && mTermSession.mSessionName != getResources().getString(R.string.daily_driver_terminal_session_name) && mTermSession.mSessionName != getResources().getString(R.string.notification_terminal_session_name) ) {
+            if(mTermSession.mSessionName != ToozConstants.CAPTIONING_TERMUX_SESSION_NAME && mTermSession.mSessionName != ToozConstants.DAILY_DRIVER_SESSION_NAME && mTermSession.mSessionName != ToozConstants.NOTIFICATION_SESSION_NAME) {
                 mTermSession.updateSize(newColumns, newRows);
             } else {
                 if(mTermSession.getEmulator() == null) {

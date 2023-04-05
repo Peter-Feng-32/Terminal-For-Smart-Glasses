@@ -1,11 +1,14 @@
 package com.termux.app.captioning;
 
+import static android.content.Context.POWER_SERVICE;
+
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
+import android.content.DialogInterface;
 import android.content.Intent;
-import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Typeface;
+import android.hardware.display.DisplayManager;
 import android.os.Build;
 import android.os.Bundle;
 
@@ -16,70 +19,39 @@ import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
 import androidx.fragment.app.Fragment;
 
-import android.provider.Settings;
+import android.os.PowerManager;
 import android.util.Log;
+import android.view.Display;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 
-import com.google.audio.CodecAndBitrate;
-import com.google.audio.NetworkConnectionChecker;
 import com.termux.R;
 import com.termux.app.TermuxActivity;
 import com.termux.app.TermuxService;
-import com.termux.app.dailydriver.NotificationDrawer;
 import com.termux.app.dailydriver.NotificationListener;
 import com.termux.app.terminal.TermuxTerminalSessionClient;
+import com.termux.view.ToozConstants;
 import com.termux.app.tooz.ToozDriver;
 import com.termux.shared.termux.shell.command.runner.terminal.TermuxSession;
-import com.termux.terminal.TerminalBuffer;
-
 
 
 /** Captioning Libraries */
 
 
-import static com.google.audio.asr.SpeechRecognitionModelOptions.SpecificModel.DICTATION_DEFAULT;
-import static com.google.audio.asr.SpeechRecognitionModelOptions.SpecificModel.VIDEO;
-import static com.google.audio.asr.TranscriptionResultFormatterOptions.TranscriptColoringStyle.NO_COLORING;
-
 import android.Manifest;
 import android.content.Context;
 import android.content.pm.PackageManager;
-import android.media.AudioFormat;
-import android.media.AudioRecord;
-import android.media.MediaRecorder;
-import android.os.Bundle;
 import android.preference.PreferenceManager;
-import androidx.core.app.ActivityCompat;
+
 import androidx.core.content.ContextCompat;
 import androidx.appcompat.app.AlertDialog;
-import android.text.Html;
-import android.text.InputType;
-import android.text.method.LinkMovementMethod;
-import android.view.View;
-import android.widget.AdapterView;
-import android.widget.AdapterView.OnItemSelectedListener;
-import android.widget.ArrayAdapter;
-import android.widget.EditText;
-import android.widget.LinearLayout;
-import android.widget.Spinner;
-import android.widget.TextView;
-import android.widget.Toast;
-import com.google.audio.asr.CloudSpeechSessionParams;
-import com.google.audio.asr.CloudSpeechStreamObserverParams;
-import com.google.audio.asr.RepeatingRecognitionSession;
-import com.google.audio.asr.SafeTranscriptionResultFormatter;
-import com.google.audio.asr.SpeechRecognitionModelOptions;
-import com.google.audio.asr.TranscriptionResultFormatterOptions;
-import com.google.audio.asr.TranscriptionResultUpdatePublisher;
-import com.google.audio.asr.TranscriptionResultUpdatePublisher.ResultSource;
-import com.google.audio.asr.cloud.CloudSpeechSessionFactory;
-import com.termux.terminal.TerminalSession;
 
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
+import android.widget.TextView;
+import android.widget.ToggleButton;
+
+import com.termux.terminal.TerminalSession;
 
 
 /**
@@ -91,12 +63,8 @@ import java.util.ArrayList;
 public class CaptioningFragment extends Fragment {
 
     /** Captioning Library stuff */
-    private static final int PERMISSIONS_REQUEST_RECORD_AUDIO = 1;
     private static final String SHARE_PREF_API_KEY = "api_key";
     private static final String SHARE_PREF_CAPTIONING_TEXT_SIZE = "12";
-    public String CAPTIONING_TERMUX_SESSION_NAME = "CAPTIONING_SESSION";
-    public String DAILY_DRIVER_SESSION_NAME = "DAILY_DRIVER_SESSION";
-    public String NOTIFICATION_SESSION_NAME = "NOTIFICATION_SESSION";
     private final int SCREEN_WIDTH = 400;
     private final int SCREEN_HEIGHT = 640;
 
@@ -106,9 +74,13 @@ public class CaptioningFragment extends Fragment {
     private TextView apiKeyEditView;
     private TextView textSizeTextView;
     private boolean captioningOn = false;
+    private boolean dailyDriverOn = false;
 
     public static ToozDriver toozDriver;
 
+    private static CaptioningFragment captioningFragment;
+
+    public String testString = "test";  //Marker for where we start notifications.
     /**
      * Use this factory method to create a new instance of
      * this fragment using the provided parameters.
@@ -122,6 +94,11 @@ public class CaptioningFragment extends Fragment {
         return fragment;
     }
 
+    public static synchronized CaptioningFragment getInstance() {
+        return captioningFragment;
+    }
+
+
     public CaptioningFragment() {
         // Required empty public constructor
     }
@@ -130,6 +107,7 @@ public class CaptioningFragment extends Fragment {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         initLanguageLocale();
+        captioningFragment = this;
     }
 
     @Override
@@ -149,7 +127,7 @@ public class CaptioningFragment extends Fragment {
             public void onClick(View v)
             {
                 saveApiKey(getActivity(), apiKeyEditView.getText().toString());
-                saveTextSize(getActivity(), textSizeTextView.getText().toString());
+                textSizeTextView.setText(saveTextSize(getActivity(), textSizeTextView.getText().toString()));
                 startCaptioning();
             }
         });
@@ -161,6 +139,7 @@ public class CaptioningFragment extends Fragment {
             public void onClick(View v)
             {
                 startDailyDriver();
+                toggleDailyDriverButton();
             }
         });
 
@@ -184,9 +163,19 @@ public class CaptioningFragment extends Fragment {
             }
         });
 
-        CAPTIONING_TERMUX_SESSION_NAME = getActivity().getResources().getString(R.string.captioning_terminal_session_name);
-        DAILY_DRIVER_SESSION_NAME = getActivity().getResources().getString(R.string.daily_driver_terminal_session_name);
-        NOTIFICATION_SESSION_NAME = getActivity().getResources().getString(R.string.notification_terminal_session_name);
+        ToggleButton notificationModeToggleButton = view.findViewById(R.id.notification_mode_toggle_button);
+        notificationModeToggleButton.setOnClickListener(new View.OnClickListener()
+        {
+            @Override
+            public void onClick(View v)
+            {
+                if(notificationModeToggleButton.isChecked()) {
+                    NotificationListener.mode = NotificationListener.Mode.TOSS_TWICE;
+                } else {
+                    NotificationListener.mode = NotificationListener.Mode.TOSS_ONCE;
+                }
+            }
+        });
 
         notificationBuilder = new NotificationCompat.Builder(this.getActivity(), CHANNEL_ID)
             .setSmallIcon(R.drawable.banner)
@@ -195,7 +184,6 @@ public class CaptioningFragment extends Fragment {
             .setStyle(new NotificationCompat.BigTextStyle()
                 .bigText("Much longer text that cannot fit one line..."))
             .setPriority(NotificationCompat.PRIORITY_DEFAULT);
-
         return view;
     }
 
@@ -209,25 +197,16 @@ public class CaptioningFragment extends Fragment {
     private ActivityResultLauncher<String> requestAudioPermissionLauncher =
         registerForActivityResult(new ActivityResultContracts.RequestPermission(), isGranted -> {
             if (isGranted) {
-                Intent captioningIntent = new Intent(getActivity(), CaptioningService.class);
-                getActivity().startService(captioningIntent);
-                toggleCaptioningButton();
+                saveApiKey(getActivity(), apiKeyEditView.getText().toString());
+                textSizeTextView.setText(saveTextSize(getActivity(), textSizeTextView.getText().toString()));
+                startCaptioning();
             } else {
                 //Can't launch captioning without audio permissions
                 return;
             }
         });
 
-    /** Handle permissions */
-    private ActivityResultLauncher<String> requestNotificationPermissionLauncher =
-        registerForActivityResult(new ActivityResultContracts.RequestPermission(), isGranted -> {
-            if (isGranted) {
-                startNotificationListener();
-            } else {
-                //Can't use notifications
-                return;
-            }
-        });
+
 
     private void initLanguageLocale() {
         // The default locale is en-US.
@@ -246,7 +225,7 @@ public class CaptioningFragment extends Fragment {
                 public void onClick(View v)
                 {
                     saveApiKey(getActivity(), apiKeyEditView.getText().toString());
-                    saveTextSize(getActivity(), textSizeTextView.getText().toString());
+                    textSizeTextView.setText(saveTextSize(getActivity(), textSizeTextView.getText().toString()));
                     startCaptioning();
                 }
             });
@@ -259,7 +238,7 @@ public class CaptioningFragment extends Fragment {
                 public void onClick(View v)
                 {
                     saveApiKey(getActivity(), apiKeyEditView.getText().toString());
-                    saveTextSize(getActivity(), textSizeTextView.getText().toString());
+                    textSizeTextView.setText(saveTextSize(getActivity(), textSizeTextView.getText().toString()));
                     stopCaptioning();
                     toggleCaptioningButton();
                 }
@@ -267,20 +246,50 @@ public class CaptioningFragment extends Fragment {
         }
     }
 
+    private void toggleDailyDriverButton() {
+        if(dailyDriverOn == false) {
+            Button button = getActivity().findViewById(R.id.btn_run_daily_driver);
+            button.setText("Resume Daily Driver!");
+            button.setOnClickListener(new View.OnClickListener()
+            {
+                @RequiresApi(api = Build.VERSION_CODES.P)
+                @Override
+                public void onClick(View v)
+                {
+                    startDailyDriver();
+                    toggleDailyDriverButton();
+                }
+            });
+        } else {
+            Button button = getActivity().findViewById(R.id.btn_run_daily_driver);
+            button.setText("Pause Daily Driver!");
+            button.setOnClickListener(new View.OnClickListener()
+            {
+                @Override
+                public void onClick(View v)
+                {
+                    stopDailyDriver();
+                    toggleDailyDriverButton();
+                }
+            });
+        }
+    }
+
     public void startNotificationListener() {
-        //if(ContextCompat.checkSelfPermission(this.getContext(), Manifest.permission.BIND_NOTIFICATION_LISTENER_SERVICE) == PackageManager.PERMISSION_GRANTED) {
-            Intent notificationIntent = new Intent(getActivity(), NotificationListener.class);
-            getActivity().startService(notificationIntent);
-        //    Log.w("Test", "Notification Listener Started");
-        //} else {
-        //    Log.w("Test", "Notification Listener Not Started");
-        //    startActivity(new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS));
-        //}
+        Intent notificationIntent = new Intent(getActivity(), NotificationListener.class);
+        getActivity().startService(notificationIntent);
+
     }
 
     public void startCaptioning() {
         Log.w("Start", "Captioning");
+        if(dailyDriverOn) {
+            stopDailyDriver();
+            toggleDailyDriverButton();
+        }
         captioningOn = true;
+
+
         if(ContextCompat.checkSelfPermission(this.getContext(), Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
             TermuxActivity termuxActivity = (TermuxActivity) getActivity();
             TermuxTerminalSessionClient termuxTerminalSessionClient = termuxActivity.getTermuxTerminalSessionClient();
@@ -290,23 +299,25 @@ public class CaptioningFragment extends Fragment {
             TerminalSession terminalSession = null;
             for(int i = 0; i < termuxService.getTermuxSessionsSize(); i++) {
                 TermuxSession termuxSession = termuxService.getTermuxSession(i);
-                if(termuxSession.getTerminalSession().mSessionName == CAPTIONING_TERMUX_SESSION_NAME) {
+                if(termuxSession.getTerminalSession().mSessionName == ToozConstants.CAPTIONING_TERMUX_SESSION_NAME) {
                     terminalSession = termuxSession.getTerminalSession();
                 }
             }
             //Find a captioning session. If none exists, we are at max sessions, and we can't start captioining.
             if(terminalSession == null) {
-                termuxTerminalSessionClient.addNewSession(false, CAPTIONING_TERMUX_SESSION_NAME);
+                termuxTerminalSessionClient.addNewSession(false, ToozConstants.CAPTIONING_TERMUX_SESSION_NAME);
             }
             for(int i = 0; i < termuxService.getTermuxSessionsSize(); i++) {
                 TermuxSession termuxSession = termuxService.getTermuxSession(i);
-                if(termuxSession.getTerminalSession().mSessionName == CAPTIONING_TERMUX_SESSION_NAME) {
+                if(termuxSession.getTerminalSession().mSessionName == ToozConstants.CAPTIONING_TERMUX_SESSION_NAME) {
                     terminalSession = termuxSession.getTerminalSession();
                 }
             }
             if(terminalSession == null) {
                 termuxActivity.showToast("Too many Terminal Sessions open, close one!", false);
                 return;
+            }else {
+                termuxTerminalSessionClient.setCurrentSession(terminalSession);
             }
             int textSize;
             try {
@@ -323,7 +334,7 @@ public class CaptioningFragment extends Fragment {
             CaptioningService.setTerminalSession(terminalSession);
             Log.w("CaptioningFragment", "columns: " + SCREEN_WIDTH/textSize + " rows: " + SCREEN_HEIGHT/textSize);
 
-            toozDriver = new ToozDriver(terminalSession.getEmulator(), textSize);
+            toozDriver = new ToozDriver(terminalSession.getEmulator(), textSize, this.getContext());
             termuxActivity.getTermuxTerminalSessionClient().setToozDriver(toozDriver);
             Intent captioningIntent = new Intent(getActivity(), CaptioningService.class);
             getActivity().startService(captioningIntent);
@@ -335,8 +346,14 @@ public class CaptioningFragment extends Fragment {
     }
 
     public void startDailyDriver() {
-        //startNotificationListener();
         Log.w("Start", "Daily Driver");
+
+        if(captioningOn) {
+            stopCaptioning();
+            toggleCaptioningButton();
+        }
+        dailyDriverOn = true;
+
         TermuxActivity termuxActivity = (TermuxActivity) getActivity();
         TermuxTerminalSessionClient termuxTerminalSessionClient = termuxActivity.getTermuxTerminalSessionClient();
         TermuxService termuxService = termuxActivity.getTermuxService();
@@ -344,23 +361,26 @@ public class CaptioningFragment extends Fragment {
         TerminalSession terminalSession = null;
         for(int i = 0; i < termuxService.getTermuxSessionsSize(); i++) {
             TermuxSession termuxSession = termuxService.getTermuxSession(i);
-            if(termuxSession.getTerminalSession().mSessionName == DAILY_DRIVER_SESSION_NAME) {
+            if(termuxSession.getTerminalSession().mSessionName == ToozConstants.DAILY_DRIVER_SESSION_NAME) {
                 terminalSession = termuxSession.getTerminalSession();
             }
         }
         if(terminalSession == null) {
-            termuxTerminalSessionClient.addNewSession(false, DAILY_DRIVER_SESSION_NAME);
+            termuxTerminalSessionClient.addNewSession(false, ToozConstants.DAILY_DRIVER_SESSION_NAME);
         }
         for(int i = 0; i < termuxService.getTermuxSessionsSize(); i++) {
             TermuxSession termuxSession = termuxService.getTermuxSession(i);
-            if(termuxSession.getTerminalSession().mSessionName == DAILY_DRIVER_SESSION_NAME) {
+            if(termuxSession.getTerminalSession().mSessionName == ToozConstants.DAILY_DRIVER_SESSION_NAME) {
                 terminalSession = termuxSession.getTerminalSession();
             }
         }
         if(terminalSession == null) {
             termuxActivity.showToast("Too many Terminal Sessions open, close one!", false);
             return;
+        } else {
+            termuxTerminalSessionClient.setCurrentSession(terminalSession);
         }
+
         int textSize;
         try {
             textSize = Integer.parseInt(textSizeTextView.getText().toString());
@@ -371,56 +391,73 @@ public class CaptioningFragment extends Fragment {
 
         Paint toozPaint = makePaint(textSize);
         terminalSession.updateSize(calculateColsInScreen(toozPaint), calculateRowsInScreen(toozPaint));
-        toozDriver = new ToozDriver(terminalSession.getEmulator(), textSize);
+        toozDriver = new ToozDriver(terminalSession.getEmulator(), textSize, getContext());
         termuxActivity.getTermuxTerminalSessionClient().setToozDriver(toozDriver);
-
     }
 
 
+
+
     public void startNotificationSession() {
-        Log.w("Start", "Notification Session");
-        TermuxActivity termuxActivity = (TermuxActivity) getActivity();
-        TermuxTerminalSessionClient termuxTerminalSessionClient = termuxActivity.getTermuxTerminalSessionClient();
-        TermuxService termuxService = termuxActivity.getTermuxService();
+        if(NotificationManagerCompat.getEnabledListenerPackages(this.getContext()).contains(this.getContext().getPackageName())) {
+            TermuxActivity termuxActivity = (TermuxActivity) getActivity();
+            TermuxTerminalSessionClient termuxTerminalSessionClient = termuxActivity.getTermuxTerminalSessionClient();
+            TermuxService termuxService = termuxActivity.getTermuxService();
 
-        TerminalSession terminalSession = null;
-        for(int i = 0; i < termuxService.getTermuxSessionsSize(); i++) {
-            TermuxSession termuxSession = termuxService.getTermuxSession(i);
-            if(termuxSession.getTerminalSession().mSessionName == NOTIFICATION_SESSION_NAME) {
-                terminalSession = termuxSession.getTerminalSession();
+            TerminalSession terminalSession = null;
+            for(int i = 0; i < termuxService.getTermuxSessionsSize(); i++) {
+                TermuxSession termuxSession = termuxService.getTermuxSession(i);
+                if(termuxSession.getTerminalSession().mSessionName == ToozConstants.NOTIFICATION_SESSION_NAME) {
+                    terminalSession = termuxSession.getTerminalSession();
+                }
             }
-        }
-        if(terminalSession == null) {
-            termuxTerminalSessionClient.addNewSessionWithoutSwitching(false, NOTIFICATION_SESSION_NAME);
-        }
-        for(int i = 0; i < termuxService.getTermuxSessionsSize(); i++) {
-            TermuxSession termuxSession = termuxService.getTermuxSession(i);
-            if(termuxSession.getTerminalSession().mSessionName == NOTIFICATION_SESSION_NAME) {
-                terminalSession = termuxSession.getTerminalSession();
+            if(terminalSession == null) {
+                termuxTerminalSessionClient.addNewSessionWithoutSwitching(false, ToozConstants.NOTIFICATION_SESSION_NAME);
             }
-        }
-        if(terminalSession == null) {
-            termuxActivity.showToast("Too many Terminal Sessions open, close one!", false);
-            return;
-        }
+            for(int i = 0; i < termuxService.getTermuxSessionsSize(); i++) {
+                TermuxSession termuxSession = termuxService.getTermuxSession(i);
+                if(termuxSession.getTerminalSession().mSessionName == ToozConstants.NOTIFICATION_SESSION_NAME) {
+                    terminalSession = termuxSession.getTerminalSession();
+                }
+            }
+            if(terminalSession == null) {
+                termuxActivity.showToast("Too many Terminal Sessions open, close one!", false);
+                return;
+            }
 
-        int textSize;
-        try {
-            textSize = Integer.parseInt(textSizeTextView.getText().toString());
-        } catch(Exception e) {
-            Log.w("DailyDriverFragment", "Failed to parse text size.");
-            return;
+            int textSize;
+            try {
+                textSize = Integer.parseInt(textSizeTextView.getText().toString());
+            } catch(Exception e) {
+                Log.w("DailyDriverFragment", "Failed to parse text size.");
+                return;
+            }
+
+            Paint toozPaint = makePaint(textSize);
+            terminalSession.updateSize(calculateColsInScreen(toozPaint), calculateRowsInScreen(toozPaint));
+            toozDriver = new ToozDriver(terminalSession.getEmulator(), textSize, getContext());
+
+            NotificationListener.setTerminalSession(terminalSession);
+            NotificationListener.setToozDriver(toozDriver);
+            NotificationListener.setTerminalSessionClient(termuxActivity.getTermuxTerminalSessionClient());
+            NotificationListener.setEnabled(true);
+            Log.w("Captioning Fragment", "Starting Notifications");
+            startNotificationListener();
+        } else {
+            final AlertDialog.Builder b = new AlertDialog.Builder(this.getActivity());
+            b.setIcon(android.R.drawable.ic_dialog_alert);
+            b.setTitle("App does not have permission to access notifications.");
+            b.setMessage("Please grant it notifications from Settings and try again.");
+            b.setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+                    startActivity(new Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS"));
+                }
+            });
+            b.setNegativeButton(android.R.string.no, null);
+            b.show();
+
         }
-
-        Paint toozPaint = makePaint(textSize);
-        terminalSession.updateSize(calculateColsInScreen(toozPaint), calculateRowsInScreen(toozPaint));
-        toozDriver = new ToozDriver(terminalSession.getEmulator(), textSize);
-
-        NotificationListener.setTerminalSession(terminalSession);
-        NotificationListener.setToozDriver(toozDriver);
-        NotificationListener.setTerminalSessionClient(termuxActivity.getTermuxTerminalSessionClient());
-        NotificationListener.setEnabled(true);
-        startNotificationListener();
 
     }
 
@@ -444,6 +481,15 @@ public class CaptioningFragment extends Fragment {
         captioningOn = false;
         Intent captioningIntent = new Intent(getActivity(), CaptioningService.class);
         getActivity().stopService(captioningIntent);
+        TermuxActivity termuxActivity = (TermuxActivity) getActivity();
+        termuxActivity.getTermuxTerminalSessionClient().setToozDriver(null);
+    }
+
+    public void stopDailyDriver() {
+        dailyDriverOn = false;
+        Log.w("Stop", "Daily Driver");
+        TermuxActivity termuxActivity = (TermuxActivity) getActivity();
+        termuxActivity.getTermuxTerminalSessionClient().setToozDriver(null);
     }
 
     /** Saves the API Key in user shared preference. */
@@ -456,20 +502,46 @@ public class CaptioningFragment extends Fragment {
 
     /** Gets the API key from shared preference. */
     private static String getApiKey(Context context) {
-        return PreferenceManager.getDefaultSharedPreferences(context).getString(SHARE_PREF_API_KEY, "");
+        return PreferenceManager.getDefaultSharedPreferences(context).getString(SHARE_PREF_API_KEY, "AIzaSyC7tjmoNHCmTPTYq6xlexeC41uPPwNua2Q");
     }
 
     /** Saves the API Key in user shared preference. */
-    private static void saveTextSize(Context context, String key) {
-        PreferenceManager.getDefaultSharedPreferences(context)
-            .edit()
-            .putString(SHARE_PREF_CAPTIONING_TEXT_SIZE, key)
-            .commit();
+    private static String saveTextSize(Context context, String size) {
+        try{
+            if(Integer.parseInt(size) < 20) {
+                PreferenceManager.getDefaultSharedPreferences(context)
+                    .edit()
+                    .putString(SHARE_PREF_CAPTIONING_TEXT_SIZE, "20")
+                    .commit();
+                return "20";
+            }
+            else if(Integer.parseInt(size) > 50) {
+                PreferenceManager.getDefaultSharedPreferences(context)
+                    .edit()
+                    .putString(SHARE_PREF_CAPTIONING_TEXT_SIZE, "50")
+                    .commit();
+                return "50";
+            }
+            else {
+                PreferenceManager.getDefaultSharedPreferences(context)
+                    .edit()
+                    .putString(SHARE_PREF_CAPTIONING_TEXT_SIZE, size)
+                    .commit();
+                return size;
+            }
+        }catch(NumberFormatException e) {
+            PreferenceManager.getDefaultSharedPreferences(context)
+                .edit()
+                .putString(SHARE_PREF_CAPTIONING_TEXT_SIZE, size)
+                .commit();
+            return "50";
+        }
+
     }
 
     /** Gets the API key from shared preference. */
     private static String getTextSize(Context context) {
-        return PreferenceManager.getDefaultSharedPreferences(context).getString(SHARE_PREF_CAPTIONING_TEXT_SIZE, "");
+        return PreferenceManager.getDefaultSharedPreferences(context).getString(SHARE_PREF_CAPTIONING_TEXT_SIZE, "40");
     }
 
 

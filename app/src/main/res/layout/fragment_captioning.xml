@@ -20,6 +20,7 @@
         android:id="@+id/api_key_text_view"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:textColor="@color/black"
         android:text="Captioning API Key"
         android:translationY="20dp" />
 
@@ -29,7 +30,7 @@
         android:layout_height="40dp"
         android:ems="10"
         android:inputType="textPersonName"
-        android:textColor="#000000"
+        android:textColor="@color/black"
         android:textSize="10sp"
         android:translationY="28dp" />
 
@@ -38,6 +39,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Font Size"
+        android:textColor="@color/black"
         android:translationY="65dp" />
 
     <EditText
@@ -47,6 +49,7 @@
         android:ems="10"
         android:inputType="number"
         android:textSize="10sp"
+        android:textColor="@color/black"
         android:translationX="0px"
         android:translationY="73dp" />
 
@@ -113,5 +116,37 @@
         android:minHeight="0dp"
         android:minWidth="0dp"
         android:visibility="visible"></Button>
+
+
+    <TextView
+        android:id="@+id/notification_mode_Toggle_buttton_lable"
+        android:layout_width="200dp"
+        android:layout_height="30dp"
+        android:translationX="0dp"
+        android:translationY="220dp"
+        android:textSize="12sp"
+        android:paddingRight="0dp"
+        android:paddingLeft="0dp"
+        android:minHeight="0dp"
+        android:minWidth="0dp"
+        android:textColor="@color/black"
+        android:text="Double Tilt Notification Mode" />
+
+
+    <ToggleButton
+        android:id="@+id/notification_mode_toggle_button"
+        android:layout_width="80dp"
+        android:layout_height="30dp"
+        android:background="#000000"
+        android:translationX="0dp"
+        android:translationY="240dp"
+        android:textSize="10sp"
+        android:paddingRight="0dp"
+        android:paddingLeft="0dp"
+        android:minHeight="0dp"
+        android:minWidth="0dp"
+        android:checked="true"
+        />
+
 
 </FrameLayout>

@@ -468,6 +468,12 @@ public class TermuxTerminalSessionClient extends TermuxTerminalSessionClientBase
         }
     }
 
+    /** The current session as stored or the last one if that does not exist. */
+    public TerminalSession getCurrentSession() {
+        return mActivity.getCurrentSession();
+
+    }
+
     private TerminalSession getCurrentStoredSession() {
         String sessionHandle = mActivity.getPreferences().getCurrentSession();
 

@@ -1,5 +1,6 @@
 package com.termux.app.tooz;
 
+import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Paint;
@@ -37,6 +38,8 @@ public class ToozDriver {
     int numFramesSent = 0;
 
     ScheduledExecutorService scheduledExecutorService = Executors.newScheduledThreadPool(20);
+
+
     private synchronized void processFrame() {
         numFramesSent--;
         if(frameDropped) {
@@ -45,7 +48,9 @@ public class ToozDriver {
         }
     }
 
-    public ToozDriver(TerminalEmulator terminalEmulator, int textSize) {
+
+
+    public ToozDriver(TerminalEmulator terminalEmulator, int textSize, android.content.Context context) {
         paint = new Paint();
         paint.setTypeface(Typeface.MONOSPACE);
         paint.setAntiAlias(true);
@@ -54,6 +59,7 @@ public class ToozDriver {
 
         toozRenderer = new ToozRenderer(paint);
         frameDriver = FrameDriver.getInstance();
+        frameDriver.setContext(context);
 
         //Setup screen tracking.
         this.terminalEmulator = terminalEmulator;
@@ -69,8 +75,12 @@ public class ToozDriver {
         return terminalEmulator;
     }
 
-    public void requestGyroData(int millisecondsDelay, TermuxTerminalSessionClient termuxTerminalSessionClient) {
-        frameDriver.requestGyroData(millisecondsDelay, termuxTerminalSessionClient);
+    public int requestAccelerometerData(int millisecondsDelay, int timeout, TermuxTerminalSessionClient termuxTerminalSessionClient) {
+        return frameDriver.requestAccelerometerData(millisecondsDelay, timeout, termuxTerminalSessionClient, this);
+    }
+
+    public int requestAccelerometerDataSilent(int millisecondsDelay, int timeout, TermuxTerminalSessionClient termuxTerminalSessionClient) {
+        return frameDriver.requestAccelerometerDataSilent(millisecondsDelay, timeout, termuxTerminalSessionClient, this);
     }
 
     public synchronized void processUpdate() {
@@ -80,17 +90,13 @@ public class ToozDriver {
             frameDropped = true;
             return;
         }
-
         boolean[][] changes = findChanges();
-
         int[] bounds = getBoundingBox(changes);
         if(bounds[0] == 0) return;
-
         int topRow = bounds[1];
         int bottomRow = bounds[2];
         int leftCol = bounds[3];
         int rightCol = bounds[4];
-
         //render
         Log.w("DailyDriver", "HeightOfBitmap " + (toozRenderer.mFontLineSpacingTooz) * (bottomRow - topRow + 1));
         Bitmap bitmap = Bitmap.createBitmap(400, Integer.min(640, toozRenderer.mFontLineDescentTooz + (toozRenderer.mFontLineSpacingTooz) * (bottomRow - topRow + 1)), Bitmap.Config.ARGB_8888);
@@ -118,8 +124,6 @@ public class ToozDriver {
             Log.w("DailyDriver", "Schedule Partial Frame, Proportion: " + Integer.max((int) (FULL_FRAME_PROCESSING_TIME * 0.1), (int) (FULL_FRAME_PROCESSING_TIME * (float) (bottomRow - topRow + 1) / changes.length ) ) );
             scheduleProcessFrame( Integer.max((int) (FULL_FRAME_PROCESSING_TIME * 0.1), (int) (FULL_FRAME_PROCESSING_TIME * (float) (bottomRow - topRow + 1) / changes.length ) ) );
         }
-
-
     }
 
     public void initializeScreenTracking() {
@@ -150,10 +154,8 @@ public class ToozDriver {
             return changes;
         }
 
-
         for(int i = 0; i < terminalEmulator.mRows; i++) {
             String s = "";
-
             for (int j = 0; j < terminalEmulator.mColumns; j++) {
                 changes[i][j] = (boolean) (screen.getmLines()[screen.externalToInternalRow(i)].getmText()[j] != currScreenChars[i][j]);
                 currScreenChars[i][j] = screen.getmLines()[screen.externalToInternalRow(i)].getmText()[j];
@@ -161,7 +163,6 @@ public class ToozDriver {
 
             }
             Log.w("Curr Screen", s);
-
         }
 
         return changes;
@@ -219,6 +220,18 @@ public class ToozDriver {
         Bitmap bitmap = Bitmap.createBitmap(400, 640, Bitmap.Config.ARGB_8888);
         Canvas toozCanvas = new Canvas(bitmap);
         toozRenderer.renderToTooz(terminalEmulator, toozCanvas, 0, -1,-1,-1,-1);
+        //Send full bitmap to tooz
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out);
+        byte[] byteArray = out.toByteArray();
+        String s = DriverHelper.bytesToHex(byteArray);
+        frameDriver.sendFullFrame(s);
+    }
+
+    public void clearScreen() {
+        Bitmap bitmap = Bitmap.createBitmap(400, 640, Bitmap.Config.ARGB_8888);
+        Canvas toozCanvas = new Canvas(bitmap);
+        toozCanvas.drawARGB(255, 0, 0, 0);
         //Send full bitmap to tooz
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out);
