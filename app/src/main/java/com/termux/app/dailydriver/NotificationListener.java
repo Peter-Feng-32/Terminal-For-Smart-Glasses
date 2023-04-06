@@ -48,6 +48,7 @@ public class NotificationListener extends NotificationListenerService {
     //Figure out the vibration problem and if there is a solution
 
     Object notificationLock = new Object();
+    Integer numNotifications = 0;
 
     public class NotificationHandler implements Runnable {
         private StatusBarNotification sbn;
@@ -59,7 +60,9 @@ public class NotificationListener extends NotificationListenerService {
         @Override
         public void run()
         {
+
             synchronized (notificationLock) {
+                Log.w("Synchronized", "Test");
                 String pack = sbn.getPackageName();
                 final PackageManager pm = getApplicationContext().getPackageManager();
                 ApplicationInfo ai;
@@ -102,7 +105,10 @@ public class NotificationListener extends NotificationListenerService {
                     terminalSession.getEmulator().append(text.getBytes(StandardCharsets.UTF_8), text.getBytes(StandardCharsets.UTF_8).length);
                     if(prevEnabled) {
                         Log.w("TEST", "PREV ENABLED");
-                        toozDriver.sendFullFrame();
+                        if (toozDriver.sendFullFrame() == -1) {
+                            termuxTerminalSessionClient.setToozEnabled(true);
+                            return;
+                        }
                         try {
                             Thread.sleep(2000);
                         } catch (InterruptedException e) {
@@ -154,6 +160,8 @@ public class NotificationListener extends NotificationListenerService {
                     }
                 }
             }
+
+
         }
     }
 

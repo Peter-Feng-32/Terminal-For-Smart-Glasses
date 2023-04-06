@@ -502,7 +502,7 @@ public class CaptioningFragment extends Fragment {
 
     /** Gets the API key from shared preference. */
     private static String getApiKey(Context context) {
-        return PreferenceManager.getDefaultSharedPreferences(context).getString(SHARE_PREF_API_KEY, "AIzaSyC7tjmoNHCmTPTYq6xlexeC41uPPwNua2Q");
+        return PreferenceManager.getDefaultSharedPreferences(context).getString(SHARE_PREF_API_KEY, "");
     }
 
     /** Saves the API Key in user shared preference. */

@@ -230,11 +230,12 @@ public class FrameDriver {
         context = c;
     }
 
-    public void sendFullFrame(String imageHexString) {
+    public int sendFullFrame(String imageHexString) {
         //Connection code - see if we can optimize this later.
         if(!isConnected()) {
             currFrame = imageHexString;
             if (!searching) searchAndConnect(SERIAL_PORT_UUID);
+            return -1;
         }
         if(isConnected())
         {
@@ -272,7 +273,9 @@ public class FrameDriver {
                     }
                 }});
             t1.start();
+            return 0;
         }
+        return -1;
     }
 
     public void sendRows(String imageHexString) {

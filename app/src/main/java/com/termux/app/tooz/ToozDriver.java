@@ -216,7 +216,7 @@ public class ToozDriver {
 
     }
 
-    public void sendFullFrame() {
+    public int sendFullFrame() {
         Bitmap bitmap = Bitmap.createBitmap(400, 640, Bitmap.Config.ARGB_8888);
         Canvas toozCanvas = new Canvas(bitmap);
         toozRenderer.renderToTooz(terminalEmulator, toozCanvas, 0, -1,-1,-1,-1);
@@ -225,7 +225,8 @@ public class ToozDriver {
         bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out);
         byte[] byteArray = out.toByteArray();
         String s = DriverHelper.bytesToHex(byteArray);
-        frameDriver.sendFullFrame(s);
+        return frameDriver.sendFullFrame(s);
+
     }
 
     public void clearScreen() {
