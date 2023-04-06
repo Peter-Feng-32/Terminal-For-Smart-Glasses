@@ -30,6 +30,7 @@ import android.widget.RelativeLayout;
 import android.widget.Toast;
 
 import com.termux.R;
+import com.termux.app.dailydriver.NotificationListener;
 import com.termux.app.terminal.TermuxActivityRootView;
 import com.termux.shared.activities.ReportActivity;
 import com.termux.shared.activity.ActivityUtils;
@@ -468,6 +469,8 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
     private void setTermuxTerminalViewAndClients() {
         // Set termux terminal view and session clients
         mTermuxTerminalSessionClient = new TermuxTerminalSessionClient(this);
+        NotificationListener.setTerminalSessionClient(mTermuxTerminalSessionClient);
+
         mTermuxTerminalViewClient = new TermuxTerminalViewClient(this, mTermuxTerminalSessionClient);
 
         // Set termux terminal view

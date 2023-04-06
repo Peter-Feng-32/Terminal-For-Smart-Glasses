@@ -177,12 +177,16 @@ public class CaptioningFragment extends Fragment {
             }
         });
 
+        //TermuxActivity termuxActivity = (TermuxActivity) getActivity();
+        //NotificationListener.setTerminalSessionClient(termuxActivity.getTermuxTerminalSessionClient());
+
+
         notificationBuilder = new NotificationCompat.Builder(this.getActivity(), CHANNEL_ID)
             .setSmallIcon(R.drawable.banner)
-            .setContentTitle("My notification")
-            .setContentText("Much longer text that cannot fit one line...")
+            .setContentTitle("Message")
+            .setContentText("Hey Thad, see you at dinner!")
             .setStyle(new NotificationCompat.BigTextStyle()
-                .bigText("Much longer text that cannot fit one line..."))
+                .bigText("Hey Thad, see you at dinner!"))
             .setPriority(NotificationCompat.PRIORITY_DEFAULT);
         return view;
     }

@@ -89,10 +89,13 @@ public class FrameDriver {
                     Log.w("FrameDriver", "Skipped " + connectionInputStream.skip(connectionInputStream.available()) + "bytes \n");
                 } else {
                     Log.w("FrameDriver", "Connection Input Stream Null");
-
+                    this.status = -1;
+                    return;
                 }
             }catch (Exception e) {
+                this.status = -1;
                 e.printStackTrace();
+                return;
             }
 
             Deque<Pair<Long, Double>> accelerometerData;
@@ -110,21 +113,30 @@ public class FrameDriver {
                 try {
                     connectionInputStream.read(bytesToToss);
                 } catch (IOException e) {
+                    this.status = -1;
                     e.printStackTrace();
+                    return;
                 }
+            } else {
+                this.status = -1;
+                return;
             }
 
             while(!done) {
                 try {
-
+                    //Log.w("Test", "" + termuxTerminalSessionClient.getEnabled());
                     if(Thread.interrupted()) {
                         this.status = -2;
                         throw new InterruptedException();
                     }
 
                     byte[] input = new byte[300];
-                    if (connectionInputStream != null) {
+                    if (connectionInputStream != null && isConnected()) {
                         connectionInputStream.read(input);
+                    } else {
+                        this.status = -1;
+                        done = true;
+                        break;
                     }
                     String str = new String(input, StandardCharsets.UTF_8);
                     //Search for message inside input
@@ -466,6 +478,7 @@ public class FrameDriver {
     public int requestAccelerometerDataSilent(int millisecondsDelay, int timeout, TermuxTerminalSessionClient termuxTerminalSessionClient, ToozDriver notificationDriver) {
         if(!isConnected()) {
             if (!searching) searchAndConnect(SERIAL_PORT_UUID);
+            return -1;
         }
         if(isConnected()) {
             Date date = new java.util.Date();

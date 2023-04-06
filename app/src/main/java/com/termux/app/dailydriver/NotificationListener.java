@@ -105,22 +105,30 @@ public class NotificationListener extends NotificationListenerService {
                     terminalSession.getEmulator().append(text.getBytes(StandardCharsets.UTF_8), text.getBytes(StandardCharsets.UTF_8).length);
                     if(prevEnabled) {
                         Log.w("TEST", "PREV ENABLED");
+                        Log.w("TEST", "" + termuxTerminalSessionClient.getEnabled());
                         if (toozDriver.sendFullFrame() == -1) {
+                            Log.w("TEST", "Full frame -1");
                             termuxTerminalSessionClient.setToozEnabled(true);
                             return;
                         }
                         try {
+                            Log.w("TEST", "Sleeping");
                             Thread.sleep(2000);
                         } catch (InterruptedException e) {
                             e.printStackTrace();
                         }
+                        Log.w("TEST", "Requesting Accel data");
+
                         int response = toozDriver.requestAccelerometerData(40,0, termuxTerminalSessionClient);
                         if(response == -1) {
+                            Log.w("TEST", "Accel -1");
                             termuxTerminalSessionClient.setToozEnabled(true);
                         }
                     }
                     else {
-                        toozDriver.processUpdate();
+                        Log.w("TEST", "Prev enabled. should not hit this.");
+                        toozDriver.sendFullFrame();
+                        termuxTerminalSessionClient.setToozEnabled(true);
                     }
                 }
                 else if (mode == Mode.TOSS_TWICE) {
@@ -143,7 +151,10 @@ public class NotificationListener extends NotificationListenerService {
                         terminalSession.getEmulator().append(text.getBytes(StandardCharsets.UTF_8), text.getBytes(StandardCharsets.UTF_8).length);
                         if(prevEnabled) {
                             Log.w("TEST", "PREV ENABLED");
-                            toozDriver.sendFullFrame();
+                            if (toozDriver.sendFullFrame() == -1) {
+                                termuxTerminalSessionClient.setToozEnabled(true);
+                                return;
+                            }
                             try {
                                 Thread.sleep(2000);
                             } catch (InterruptedException e) {
@@ -155,7 +166,8 @@ public class NotificationListener extends NotificationListenerService {
                             }
                         }
                         else {
-                            toozDriver.processUpdate();
+                            toozDriver.sendFullFrame();
+                            termuxTerminalSessionClient.setToozEnabled(true);
                         }
                     }
                 }

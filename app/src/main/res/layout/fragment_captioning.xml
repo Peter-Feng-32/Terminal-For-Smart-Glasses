@@ -146,6 +146,7 @@
         android:minHeight="0dp"
         android:minWidth="0dp"
         android:checked="true"
+        android:textColor="@color/white"
         />
 
 
