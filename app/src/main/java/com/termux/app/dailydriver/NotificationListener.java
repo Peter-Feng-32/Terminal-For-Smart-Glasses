@@ -24,6 +24,12 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.Queue;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
+
 import android.os.Vibrator;
 import android.util.Pair;
 
@@ -47,12 +53,10 @@ public class NotificationListener extends NotificationListenerService {
     //TODO: Decide how to handle multiple incoming notifications while one is still displayed.
     //Figure out the vibration problem and if there is a solution
 
-    Object notificationLock = new Object();
-    Integer numNotifications = 0;
+    public static Lock notificationLock = new ReentrantLock();
 
     public class NotificationHandler implements Runnable {
         private StatusBarNotification sbn;
-
         public NotificationHandler(StatusBarNotification sbn){
             this.sbn = sbn;
         }
@@ -60,14 +64,14 @@ public class NotificationListener extends NotificationListenerService {
         @Override
         public void run()
         {
-
-            synchronized (notificationLock) {
+            try {
+                notificationLock.lockInterruptibly();
                 Log.w("Synchronized", "Test");
                 String pack = sbn.getPackageName();
                 final PackageManager pm = getApplicationContext().getPackageManager();
                 ApplicationInfo ai;
                 try {
-                    ai = pm.getApplicationInfo( pack, 0);
+                    ai = pm.getApplicationInfo(pack, 0);
                 } catch (final PackageManager.NameNotFoundException e) {
                     ai = null;
                 }
@@ -78,7 +82,8 @@ public class NotificationListener extends NotificationListenerService {
                 String text = sbn.getNotification().extras.get(EXTRA_TEXT) == null ? "(unknown text)" : sbn.getNotification().extras.get(EXTRA_TEXT).toString();
 
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    if(sbn.getNotification().getChannelId().equals(TermuxConstants.TERMUX_APP_NOTIFICATION_CHANNEL_ID)) {
+                    if (sbn.getNotification().getChannelId().equals(TermuxConstants.TERMUX_APP_NOTIFICATION_CHANNEL_ID)) {
+                        notificationLock.unlock();
                         return;
                     }
                 }
@@ -103,12 +108,16 @@ public class NotificationListener extends NotificationListenerService {
                     terminalSession.getEmulator().append(title.getBytes(StandardCharsets.UTF_8), title.getBytes(StandardCharsets.UTF_8).length);
                     terminalSession.getEmulator().append(escapeSeqNextLine.getBytes(), escapeSeqNextLine.getBytes(StandardCharsets.UTF_8).length);
                     terminalSession.getEmulator().append(text.getBytes(StandardCharsets.UTF_8), text.getBytes(StandardCharsets.UTF_8).length);
-                    if(prevEnabled) {
+                    if (prevEnabled) {
                         Log.w("TEST", "PREV ENABLED");
                         Log.w("TEST", "" + termuxTerminalSessionClient.getEnabled());
                         if (toozDriver.sendFullFrame() == -1) {
                             Log.w("TEST", "Full frame -1");
                             termuxTerminalSessionClient.setToozEnabled(true);
+                            if(termuxTerminalSessionClient.getToozDriver() != null) {
+                                termuxTerminalSessionClient.getToozDriver().initializeScreenTracking();
+                            }
+                            notificationLock.unlock();
                             return;
                         }
                         try {
@@ -119,24 +128,32 @@ public class NotificationListener extends NotificationListenerService {
                         }
                         Log.w("TEST", "Requesting Accel data");
 
-                        int response = toozDriver.requestAccelerometerData(40,0, termuxTerminalSessionClient);
-                        if(response == -1) {
+                        int response = toozDriver.requestAccelerometerData(40, 0, termuxTerminalSessionClient);
+                        if (response == -1) {
                             Log.w("TEST", "Accel -1");
                             termuxTerminalSessionClient.setToozEnabled(true);
+                            if(termuxTerminalSessionClient.getToozDriver() != null) {
+                                termuxTerminalSessionClient.getToozDriver().initializeScreenTracking();
+                            }
+                        } else {
+                            Log.w("TEST", "Accel" + response);
                         }
-                    }
-                    else {
+                    } else {
                         Log.w("TEST", "Prev enabled. should not hit this.");
-                        toozDriver.sendFullFrame();
+                        if(termuxTerminalSessionClient.getToozDriver() != null) {
+                            termuxTerminalSessionClient.getToozDriver().initializeScreenTracking();
+                        }
                         termuxTerminalSessionClient.setToozEnabled(true);
+
                     }
-                }
-                else if (mode == Mode.TOSS_TWICE) {
+                } else if (mode == Mode.TOSS_TWICE) {
                     Log.w("onNotificationPosted", "Toss Twice");
-                    int response = toozDriver.requestAccelerometerDataSilent(40,5000, termuxTerminalSessionClient);
-                    if(response == -1) {
+                    int response = toozDriver.requestAccelerometerDataSilent(40, 5000, termuxTerminalSessionClient);
+                    if (response == -1) {
+                        notificationLock.unlock();
                         return;
-                    } else if(response == -2) {
+                    } else if (response == -2) {
+                         notificationLock.unlock();
                         return;
                     } else {
                         boolean prevEnabled = termuxTerminalSessionClient.getEnabled();
@@ -149,31 +166,51 @@ public class NotificationListener extends NotificationListenerService {
                         terminalSession.getEmulator().append(title.getBytes(StandardCharsets.UTF_8), title.getBytes(StandardCharsets.UTF_8).length);
                         terminalSession.getEmulator().append(escapeSeqNextLine.getBytes(), escapeSeqNextLine.getBytes(StandardCharsets.UTF_8).length);
                         terminalSession.getEmulator().append(text.getBytes(StandardCharsets.UTF_8), text.getBytes(StandardCharsets.UTF_8).length);
-                        if(prevEnabled) {
+                        if (prevEnabled) {
                             Log.w("TEST", "PREV ENABLED");
                             if (toozDriver.sendFullFrame() == -1) {
                                 termuxTerminalSessionClient.setToozEnabled(true);
+                                if(termuxTerminalSessionClient.getToozDriver() != null) {
+                                    termuxTerminalSessionClient.getToozDriver().initializeScreenTracking();
+                                }
+                                notificationLock.unlock();
                                 return;
                             }
                             try {
                                 Thread.sleep(2000);
                             } catch (InterruptedException e) {
                                 e.printStackTrace();
-                            }
-                            int secondResponse = toozDriver.requestAccelerometerData(40,50000, termuxTerminalSessionClient);
-                            if(secondResponse == -1) {
                                 termuxTerminalSessionClient.setToozEnabled(true);
+                                if(termuxTerminalSessionClient.getToozDriver() != null) {
+                                    termuxTerminalSessionClient.getToozDriver().initializeScreenTracking();
+                                }
+                                notificationLock.unlock();
+                                return;
                             }
-                        }
-                        else {
+                            int secondResponse = toozDriver.requestAccelerometerData(40, 50000, termuxTerminalSessionClient);
+                            if (secondResponse == -1) {
+                                termuxTerminalSessionClient.setToozEnabled(true);
+                                if(termuxTerminalSessionClient.getToozDriver() != null) {
+                                    termuxTerminalSessionClient.getToozDriver().initializeScreenTracking();
+                                }
+                            }
+                        } else {
                             toozDriver.sendFullFrame();
+                            if(termuxTerminalSessionClient.getToozDriver() != null) {
+                                termuxTerminalSessionClient.getToozDriver().initializeScreenTracking();
+                            }
                             termuxTerminalSessionClient.setToozEnabled(true);
                         }
                     }
                 }
+            } catch (InterruptedException e) {
+                //lockInterruptibly throws interruptedexception when not able to acquire lock and is interrupted.
+                //We never acquired the lock and never entered the block.
+                Log.w("InterruptedException", "NEVER entered block");
+                return;
             }
-
-
+            //Unlock
+            notificationLock.unlock();
         }
     }
 
@@ -196,6 +233,26 @@ public class NotificationListener extends NotificationListenerService {
         NotificationHandler notificationHandler = new NotificationHandler(sbn);
         Thread notificationHandlerThread = new Thread(notificationHandler);
         notificationHandlerThread.start();
+
+
+        //After 60 seconds, if the notification is not accessed, interrupt it.
+        //Maybe store all notification threads inside a deque, and interrupt all of them?  Would solve issue where they are being
+        //Interrupted one by one, and vibrations are all going off.
+        int timeout = 60000;
+        ScheduledExecutorService worker = Executors.newSingleThreadScheduledExecutor();
+        Runnable runnable = new Runnable() {
+            public void run() {
+                // Do something
+                if(notificationHandlerThread.isAlive() && !notificationHandlerThread.isInterrupted()) {
+                    notificationHandlerThread.interrupt();
+                }
+            }
+        };
+        if(timeout > 0) {
+            worker.schedule(runnable, timeout, TimeUnit.MILLISECONDS);
+        }
+
+
 
     }
 

@@ -7,6 +7,8 @@ import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
 import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
 import android.os.ParcelUuid;
 import android.os.PowerManager;
 import android.util.Log;
@@ -15,6 +17,7 @@ import android.util.Pair;
 import com.termux.app.terminal.TermuxTerminalSessionClient;
 import com.termux.view.ToozConstants;
 
+import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.apache.commons.lang3.ArrayUtils;
 import org.checkerframework.checker.units.qual.A;
 import org.json.JSONException;
@@ -124,10 +127,17 @@ public class FrameDriver {
 
             while(!done) {
                 try {
+
+                    if(!isConnected()) {
+                        this.status = -1;
+                        break;
+                    }
+
                     //Log.w("Test", "" + termuxTerminalSessionClient.getEnabled());
                     if(Thread.interrupted()) {
                         this.status = -2;
-                        throw new InterruptedException();
+                        done = true;
+                        break;
                     }
 
                     byte[] input = new byte[300];
@@ -223,9 +233,6 @@ public class FrameDriver {
                     }
                     if(!searching) searchAndConnect(SERIAL_PORT_UUID);
                     return;
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                    done = true;
                 }
 
             }
@@ -247,7 +254,6 @@ public class FrameDriver {
         if(!isConnected()) {
             currFrame = imageHexString;
             if (!searching) searchAndConnect(SERIAL_PORT_UUID);
-            return -1;
         }
         if(isConnected())
         {
@@ -448,10 +454,16 @@ public class FrameDriver {
             }
             accelerationThread.start();
 
+
             try {
                 accelerationThread.join();
-            } catch (Exception e) {
+            } catch (InterruptedException e) {
+                if(accelerationThread.isAlive() && !accelerationThread.isInterrupted()) {
+                    accelerationThread.interrupt();
+                }
+                worker.shutdown();
                 e.printStackTrace();
+                accelerationReader.status = -2;
             }
 
             //If there is a tooz session currently running:
@@ -531,7 +543,7 @@ public class FrameDriver {
             Runnable runnable = new Runnable() {
                 public void run() {
                     // Do something
-                    if(accelerationThread.isAlive()) {
+                    if(accelerationThread.isAlive() && !accelerationThread.isInterrupted()) {
                         accelerationThread.interrupt();
                     }
                 }
@@ -543,8 +555,13 @@ public class FrameDriver {
 
             try {
                 accelerationThread.join();
-            } catch (Exception e) {
+            } catch (InterruptedException e) {
+                if(accelerationThread.isAlive() && !accelerationThread.isInterrupted()) {
+                    accelerationThread.interrupt();
+                }
+                worker.shutdown();
                 e.printStackTrace();
+                accelerationReader.status = -2;
             }
 
             Log.w("Read Acceleration", "Status: " + accelerationReader.getStatus());
@@ -678,7 +695,17 @@ public class FrameDriver {
             }
 
             Log.w("Success", "Connection Succeeded");
-            sendFullFrame(currFrame);
+
+            /* Clear screen */
+            Bitmap bitmap = Bitmap.createBitmap(400, 640, Bitmap.Config.ARGB_8888);
+            Canvas toozCanvas = new Canvas(bitmap);
+            toozCanvas.drawARGB(255, 0, 0, 0);
+            //Send full bitmap to tooz
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out);
+            byte[] byteArray = out.toByteArray();
+            String s = DriverHelper.bytesToHex(byteArray);
+            sendFullFrame(s);
 
         }
 

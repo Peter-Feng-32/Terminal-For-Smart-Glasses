@@ -35,6 +35,7 @@ import com.google.audio.asr.TranscriptionResultFormatterOptions;
 import com.google.audio.asr.TranscriptionResultUpdatePublisher;
 import com.google.audio.asr.TranscriptionResultUpdatePublisher.ResultSource;
 import com.google.audio.asr.cloud.CloudSpeechSessionFactory;
+import com.termux.app.dailydriver.NotificationListener;
 import com.termux.app.terminal.TermuxTerminalSessionClient;
 import com.termux.terminal.TerminalEmulator;
 import com.termux.terminal.TerminalSession;
@@ -166,7 +167,24 @@ public class CaptioningService extends Service {
         initLanguageLocale();
         constructRepeatingRecognitionSession();
         startRecording();
-        ((TermuxTerminalSessionClient) terminalSession.getmClient()).getToozDriver().clearScreen();
+        //Clear "Connecting" Screen
+
+        if(NotificationListener.notificationLock.tryLock()) {
+            // Got the lock
+            try
+            {
+                Log.w("CaptioningServiceStart", "Notification Lock not occupied");
+                ((TermuxTerminalSessionClient) terminalSession.getmClient()).getToozDriver().clearScreen();
+            }
+            finally
+            {
+                // Make sure to unlock so that we don't cause a deadlock
+                NotificationListener.notificationLock.unlock();
+            }
+        } else {
+            //If notification is being displayed(notification lock occupied) don't clear screen.
+            Log.w("CaptioningServiceStart", "Notification Lock occupied");
+        }
         return super.onStartCommand(intent, flags, startId);
     }
 

@@ -63,7 +63,7 @@ public class ToozDriver {
 
         //Setup screen tracking.
         this.terminalEmulator = terminalEmulator;
-        initializeScreenTracking();
+        initializeScreenTrackingSilent();
         lockResizing();
     }
 
@@ -138,6 +138,20 @@ public class ToozDriver {
         }
         sendFullFrame();
     }
+
+    public void initializeScreenTrackingSilent() {
+        Log.w("DailyDriver", "Initialize Screen Tracking");
+        TerminalBuffer screen = terminalEmulator.getScreen();
+
+        currScreenChars = new char[terminalEmulator.mRows][terminalEmulator.mColumns];
+        for(int i = 0; i < terminalEmulator.mRows; i++) {
+            for(int j = 0; j < terminalEmulator.mColumns; j++) {
+                currScreenChars[i][j] = screen.getmLines()[screen.externalToInternalRow(i)].getmText()[j];
+            }
+        }
+        //sendFullFrame();
+    }
+
 
     private boolean[][] findChanges() {
         boolean[][] changes = new boolean[terminalEmulator.mRows][terminalEmulator.mColumns];
@@ -217,6 +231,10 @@ public class ToozDriver {
     }
 
     public int sendFullFrame() {
+        Log.w("Send Full Frame", "");
+        for (StackTraceElement ste : Thread.currentThread().getStackTrace()) {
+            Log.w("StackTrace", ste.toString());
+        }
         Bitmap bitmap = Bitmap.createBitmap(400, 640, Bitmap.Config.ARGB_8888);
         Canvas toozCanvas = new Canvas(bitmap);
         toozRenderer.renderToTooz(terminalEmulator, toozCanvas, 0, -1,-1,-1,-1);
@@ -230,6 +248,10 @@ public class ToozDriver {
     }
 
     public void clearScreen() {
+        Log.w("Clear Screen", "");
+        for (StackTraceElement ste : Thread.currentThread().getStackTrace()) {
+            Log.w("StackTrace", ste.toString() );
+        }
         Bitmap bitmap = Bitmap.createBitmap(400, 640, Bitmap.Config.ARGB_8888);
         Canvas toozCanvas = new Canvas(bitmap);
         toozCanvas.drawARGB(255, 0, 0, 0);

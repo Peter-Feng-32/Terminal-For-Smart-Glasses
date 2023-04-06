@@ -164,6 +164,7 @@ public class CaptioningFragment extends Fragment {
         });
 
         ToggleButton notificationModeToggleButton = view.findViewById(R.id.notification_mode_toggle_button);
+        notificationModeToggleButton.setChecked(NotificationListener.mode == NotificationListener.Mode.TOSS_TWICE);
         notificationModeToggleButton.setOnClickListener(new View.OnClickListener()
         {
             @Override
@@ -177,8 +178,8 @@ public class CaptioningFragment extends Fragment {
             }
         });
 
-        //TermuxActivity termuxActivity = (TermuxActivity) getActivity();
-        //NotificationListener.setTerminalSessionClient(termuxActivity.getTermuxTerminalSessionClient());
+        TermuxActivity termuxActivity = (TermuxActivity) getActivity();
+        NotificationListener.setTerminalSessionClient(termuxActivity.getTermuxTerminalSessionClient());
 
 
         notificationBuilder = new NotificationCompat.Builder(this.getActivity(), CHANNEL_ID)
@@ -292,8 +293,6 @@ public class CaptioningFragment extends Fragment {
             toggleDailyDriverButton();
         }
         captioningOn = true;
-
-
         if(ContextCompat.checkSelfPermission(this.getContext(), Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
             TermuxActivity termuxActivity = (TermuxActivity) getActivity();
             TermuxTerminalSessionClient termuxTerminalSessionClient = termuxActivity.getTermuxTerminalSessionClient();
@@ -321,7 +320,9 @@ public class CaptioningFragment extends Fragment {
                 termuxActivity.showToast("Too many Terminal Sessions open, close one!", false);
                 return;
             }else {
-                termuxTerminalSessionClient.setCurrentSession(terminalSession);
+                if(!termuxTerminalSessionClient.getCurrentSession().equals(terminalSession)) {
+                    termuxTerminalSessionClient.setCurrentSession(terminalSession);
+                }
             }
             int textSize;
             try {
