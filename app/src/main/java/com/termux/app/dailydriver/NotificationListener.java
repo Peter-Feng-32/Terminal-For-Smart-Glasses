@@ -24,6 +24,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.Queue;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -37,6 +39,8 @@ import com.termux.shared.termux.TermuxConstants;
 
 import org.json.JSONException;
 import org.json.JSONObject;
+
+import javax.net.ssl.SSLEngineResult;
 
 public class NotificationListener extends NotificationListenerService {
     private static TerminalSession terminalSession;
@@ -53,110 +57,59 @@ public class NotificationListener extends NotificationListenerService {
     //TODO: Decide how to handle multiple incoming notifications while one is still displayed.
     //Figure out the vibration problem and if there is a solution
 
-    public static Lock notificationLock = new ReentrantLock();
+    public static BlockingQueue<StatusBarNotification> notifications = new ArrayBlockingQueue<StatusBarNotification>(100);
+    public static Lock notificationDisplayLock = new ReentrantLock();
+    NotificationHandler notificationHandler = new NotificationHandler();
+    Thread notificationHandlerThread = new Thread(notificationHandler);
 
     public class NotificationHandler implements Runnable {
-        private StatusBarNotification sbn;
-        public NotificationHandler(StatusBarNotification sbn){
-            this.sbn = sbn;
+        public NotificationHandler(){
         }
 
         @Override
         public void run()
         {
-            try {
-                notificationLock.lockInterruptibly();
-                Log.w("Synchronized", "Test");
-                String pack = sbn.getPackageName();
-                final PackageManager pm = getApplicationContext().getPackageManager();
-                ApplicationInfo ai;
+            while(true) {
                 try {
-                    ai = pm.getApplicationInfo(pack, 0);
-                } catch (final PackageManager.NameNotFoundException e) {
-                    ai = null;
-                }
-                final String applicationName = (String) (ai != null ?
-                    pm.getApplicationLabel(ai) : "(unknown)");
+                    Log.w(TAG, "Before Take");
 
-                String title = sbn.getNotification().extras.get(EXTRA_TITLE) == null ? "(unknown title)" : sbn.getNotification().extras.get(EXTRA_TITLE).toString();
-                String text = sbn.getNotification().extras.get(EXTRA_TEXT) == null ? "(unknown text)" : sbn.getNotification().extras.get(EXTRA_TEXT).toString();
+                    StatusBarNotification sbn = notifications.take();
+                    Log.w(TAG, "After Take");
 
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    if (sbn.getNotification().getChannelId().equals(TermuxConstants.TERMUX_APP_NOTIFICATION_CHANNEL_ID)) {
-                        notificationLock.unlock();
-                        return;
+
+
+                    String pack = sbn.getPackageName();
+                    final PackageManager pm = getApplicationContext().getPackageManager();
+                    ApplicationInfo ai;
+                    try {
+                        ai = pm.getApplicationInfo(pack, 0);
+                    } catch (final PackageManager.NameNotFoundException e) {
+                        ai = null;
                     }
-                }
+                    final String applicationName = (String) (ai != null ?
+                        pm.getApplicationLabel(ai) : "(unknown)");
 
-                Vibrator v = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    v.vibrate(VibrationEffect.createOneShot(100, VibrationEffect.DEFAULT_AMPLITUDE));
-                } else {
-                    //deprecated in API 26
-                    v.vibrate(100);
-                }
+                    String title = sbn.getNotification().extras.get(EXTRA_TITLE) == null ? "(unknown title)" : sbn.getNotification().extras.get(EXTRA_TITLE).toString();
+                    String text = sbn.getNotification().extras.get(EXTRA_TEXT) == null ? "(unknown text)" : sbn.getNotification().extras.get(EXTRA_TEXT).toString();
 
-                if (mode == Mode.TOSS_ONCE) {
-                    Log.w("onNotificationPosted", "Toss Once");
-                    boolean prevEnabled = termuxTerminalSessionClient.getEnabled();
-                    termuxTerminalSessionClient.setToozEnabled(false);
-                    String escapeSeq = "\033[2J\033[H"; //Clear screen and move cursor to top left
-                    terminalSession.getEmulator().append(escapeSeq.getBytes(), escapeSeq.getBytes(StandardCharsets.UTF_8).length);
-                    terminalSession.getEmulator().append(applicationName.getBytes(StandardCharsets.UTF_8), applicationName.getBytes(StandardCharsets.UTF_8).length);
-                    String escapeSeqNextLine = "\033[E"; //Go to next line
-                    terminalSession.getEmulator().append(escapeSeqNextLine.getBytes(), escapeSeqNextLine.getBytes(StandardCharsets.UTF_8).length);
-                    terminalSession.getEmulator().append(title.getBytes(StandardCharsets.UTF_8), title.getBytes(StandardCharsets.UTF_8).length);
-                    terminalSession.getEmulator().append(escapeSeqNextLine.getBytes(), escapeSeqNextLine.getBytes(StandardCharsets.UTF_8).length);
-                    terminalSession.getEmulator().append(text.getBytes(StandardCharsets.UTF_8), text.getBytes(StandardCharsets.UTF_8).length);
-                    if (prevEnabled) {
-                        Log.w("TEST", "PREV ENABLED");
-                        Log.w("TEST", "" + termuxTerminalSessionClient.getEnabled());
-                        if (toozDriver.sendFullFrame() == -1) {
-                            Log.w("TEST", "Full frame -1");
-                            termuxTerminalSessionClient.setToozEnabled(true);
-                            if(termuxTerminalSessionClient.getToozDriver() != null) {
-                                termuxTerminalSessionClient.getToozDriver().initializeScreenTracking();
-                            }
-                            notificationLock.unlock();
-                            return;
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        if (sbn.getNotification().getChannelId().equals(TermuxConstants.TERMUX_APP_NOTIFICATION_CHANNEL_ID)) {
+                            continue;
                         }
-                        try {
-                            Log.w("TEST", "Sleeping");
-                            Thread.sleep(2000);
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
-                        }
-                        Log.w("TEST", "Requesting Accel data");
-
-                        int response = toozDriver.requestAccelerometerData(40, 0, termuxTerminalSessionClient);
-                        if (response == -1) {
-                            Log.w("TEST", "Accel -1");
-                            termuxTerminalSessionClient.setToozEnabled(true);
-                            if(termuxTerminalSessionClient.getToozDriver() != null) {
-                                termuxTerminalSessionClient.getToozDriver().initializeScreenTracking();
-                            }
-                        } else {
-                            Log.w("TEST", "Accel" + response);
-                        }
-                    } else {
-                        Log.w("TEST", "Prev enabled. should not hit this.");
-                        if(termuxTerminalSessionClient.getToozDriver() != null) {
-                            termuxTerminalSessionClient.getToozDriver().initializeScreenTracking();
-                        }
-                        termuxTerminalSessionClient.setToozEnabled(true);
-
                     }
-                } else if (mode == Mode.TOSS_TWICE) {
-                    Log.w("onNotificationPosted", "Toss Twice");
-                    int response = toozDriver.requestAccelerometerDataSilent(40, 5000, termuxTerminalSessionClient);
-                    if (response == -1) {
-                        notificationLock.unlock();
-                        return;
-                    } else if (response == -2) {
-                         notificationLock.unlock();
-                        return;
+
+                    Vibrator v = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        v.vibrate(VibrationEffect.createOneShot(100, VibrationEffect.DEFAULT_AMPLITUDE));
                     } else {
-                        boolean prevEnabled = termuxTerminalSessionClient.getEnabled();
+                        //deprecated in API 26
+                        v.vibrate(100);
+                    }
+
+                    Log.w(TAG, "Handling Notification");
+
+                    notificationDisplayLock.lock();
+                    if (mode == Mode.TOSS_ONCE) {
                         termuxTerminalSessionClient.setToozEnabled(false);
                         String escapeSeq = "\033[2J\033[H"; //Clear screen and move cursor to top left
                         terminalSession.getEmulator().append(escapeSeq.getBytes(), escapeSeq.getBytes(StandardCharsets.UTF_8).length);
@@ -166,14 +119,49 @@ public class NotificationListener extends NotificationListenerService {
                         terminalSession.getEmulator().append(title.getBytes(StandardCharsets.UTF_8), title.getBytes(StandardCharsets.UTF_8).length);
                         terminalSession.getEmulator().append(escapeSeqNextLine.getBytes(), escapeSeqNextLine.getBytes(StandardCharsets.UTF_8).length);
                         terminalSession.getEmulator().append(text.getBytes(StandardCharsets.UTF_8), text.getBytes(StandardCharsets.UTF_8).length);
-                        if (prevEnabled) {
-                            Log.w("TEST", "PREV ENABLED");
+                        if (toozDriver.sendFullFrame() == -1) {
+                            termuxTerminalSessionClient.setToozEnabled(true);
+                            if(termuxTerminalSessionClient.getToozDriver() != null) {
+                                termuxTerminalSessionClient.getToozDriver().initializeScreenTracking();
+                            }
+                            notificationDisplayLock.unlock();
+                            return;
+                        }
+                        try {
+                            Thread.sleep(2000);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                        int response = toozDriver.requestAccelerometerData(40, 0, termuxTerminalSessionClient);
+                        if (response == -1) {
+                            termuxTerminalSessionClient.setToozEnabled(true);
+                            if(termuxTerminalSessionClient.getToozDriver() != null) {
+                                termuxTerminalSessionClient.getToozDriver().initializeScreenTracking();
+                            }
+                        }
+                        notificationDisplayLock.unlock();
+                    } else if (mode == Mode.TOSS_TWICE) {
+                        int response = toozDriver.requestAccelerometerDataSilent(40, 5000, termuxTerminalSessionClient);
+                        if (response == -1 || response == -2) {
+                            notificationDisplayLock.unlock();
+                            return;
+                        } else {
+                            termuxTerminalSessionClient.setToozEnabled(false);
+                            String escapeSeq = "\033[2J\033[H"; //Clear screen and move cursor to top left
+                            terminalSession.getEmulator().append(escapeSeq.getBytes(), escapeSeq.getBytes(StandardCharsets.UTF_8).length);
+                            terminalSession.getEmulator().append(applicationName.getBytes(StandardCharsets.UTF_8), applicationName.getBytes(StandardCharsets.UTF_8).length);
+                            String escapeSeqNextLine = "\033[E"; //Go to next line
+                            terminalSession.getEmulator().append(escapeSeqNextLine.getBytes(), escapeSeqNextLine.getBytes(StandardCharsets.UTF_8).length);
+                            terminalSession.getEmulator().append(title.getBytes(StandardCharsets.UTF_8), title.getBytes(StandardCharsets.UTF_8).length);
+                            terminalSession.getEmulator().append(escapeSeqNextLine.getBytes(), escapeSeqNextLine.getBytes(StandardCharsets.UTF_8).length);
+                            terminalSession.getEmulator().append(text.getBytes(StandardCharsets.UTF_8), text.getBytes(StandardCharsets.UTF_8).length);
+
                             if (toozDriver.sendFullFrame() == -1) {
                                 termuxTerminalSessionClient.setToozEnabled(true);
                                 if(termuxTerminalSessionClient.getToozDriver() != null) {
                                     termuxTerminalSessionClient.getToozDriver().initializeScreenTracking();
                                 }
-                                notificationLock.unlock();
+                                notificationDisplayLock.unlock();
                                 return;
                             }
                             try {
@@ -184,7 +172,7 @@ public class NotificationListener extends NotificationListenerService {
                                 if(termuxTerminalSessionClient.getToozDriver() != null) {
                                     termuxTerminalSessionClient.getToozDriver().initializeScreenTracking();
                                 }
-                                notificationLock.unlock();
+                                notificationDisplayLock.unlock();
                                 return;
                             }
                             int secondResponse = toozDriver.requestAccelerometerData(40, 50000, termuxTerminalSessionClient);
@@ -194,23 +182,14 @@ public class NotificationListener extends NotificationListenerService {
                                     termuxTerminalSessionClient.getToozDriver().initializeScreenTracking();
                                 }
                             }
-                        } else {
-                            toozDriver.sendFullFrame();
-                            if(termuxTerminalSessionClient.getToozDriver() != null) {
-                                termuxTerminalSessionClient.getToozDriver().initializeScreenTracking();
-                            }
-                            termuxTerminalSessionClient.setToozEnabled(true);
+                            notificationDisplayLock.unlock();
                         }
                     }
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
                 }
-            } catch (InterruptedException e) {
-                //lockInterruptibly throws interruptedexception when not able to acquire lock and is interrupted.
-                //We never acquired the lock and never entered the block.
-                Log.w("InterruptedException", "NEVER entered block");
-                return;
+
             }
-            //Unlock
-            notificationLock.unlock();
         }
     }
 
@@ -220,9 +199,9 @@ public class NotificationListener extends NotificationListenerService {
     }
     @Override
     public void onNotificationPosted(StatusBarNotification sbn) {
-
-        Log.w(TAG, "Notification ");
         TAG = "onNotificationPosted";
+        Log.w(TAG, "Notification ");
+
 
         if(!enabled) return;
         if(terminalSession == null || toozDriver == null || termuxTerminalSessionClient == null) {
@@ -230,29 +209,13 @@ public class NotificationListener extends NotificationListenerService {
             stopSelf();
             return;
         }
-        NotificationHandler notificationHandler = new NotificationHandler(sbn);
-        Thread notificationHandlerThread = new Thread(notificationHandler);
-        notificationHandlerThread.start();
+        boolean notificationInserted = notifications.offer(sbn);
+        Log.w(TAG, "New Notification Added : " + notificationInserted);
 
-
-        //After 60 seconds, if the notification is not accessed, interrupt it.
-        //Maybe store all notification threads inside a deque, and interrupt all of them?  Would solve issue where they are being
-        //Interrupted one by one, and vibrations are all going off.
-        int timeout = 60000;
-        ScheduledExecutorService worker = Executors.newSingleThreadScheduledExecutor();
-        Runnable runnable = new Runnable() {
-            public void run() {
-                // Do something
-                if(notificationHandlerThread.isAlive() && !notificationHandlerThread.isInterrupted()) {
-                    notificationHandlerThread.interrupt();
-                }
-            }
-        };
-        if(timeout > 0) {
-            worker.schedule(runnable, timeout, TimeUnit.MILLISECONDS);
+        if(!notificationHandlerThread.isAlive() && !notificationHandlerThread.isInterrupted()) {
+            notificationHandlerThread = new Thread(notificationHandler);
+            notificationHandlerThread.start();
         }
-
-
 
     }
 
@@ -282,6 +245,10 @@ public class NotificationListener extends NotificationListenerService {
     public static void setEnabled(boolean en) { enabled = en; }
     public static boolean getEnabled() {
         return enabled;
+    }
+
+    public static void clearNotificationQueue() {
+        notifications.clear();
     }
 
 

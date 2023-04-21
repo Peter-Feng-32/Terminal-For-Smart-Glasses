@@ -169,7 +169,7 @@ public class CaptioningService extends Service {
         startRecording();
         //Clear "Connecting" Screen
 
-        if(NotificationListener.notificationLock.tryLock()) {
+        if(NotificationListener.notificationDisplayLock.tryLock()) {
             // Got the lock
             try
             {
@@ -179,7 +179,7 @@ public class CaptioningService extends Service {
             finally
             {
                 // Make sure to unlock so that we don't cause a deadlock
-                NotificationListener.notificationLock.unlock();
+                NotificationListener.notificationDisplayLock.unlock();
             }
         } else {
             //If notification is being displayed(notification lock occupied) don't clear screen.
@@ -201,6 +201,9 @@ public class CaptioningService extends Service {
         // The default locale is en-US.
         currentLanguageCode = "en-US";
         currentLanguageCodePosition = 22;
+
+
+        
     }
 
     private void constructRepeatingRecognitionSession() {

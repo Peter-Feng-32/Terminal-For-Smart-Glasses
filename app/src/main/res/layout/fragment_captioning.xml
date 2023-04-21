@@ -118,12 +118,28 @@
         android:visibility="visible"></Button>
 
 
+    <Button
+        android:id="@+id/btn_clear_notifications"
+        android:layout_width="120dp"
+        android:layout_height="50dp"
+        android:background="#000000"
+        android:text="Clear Notifications"
+        android:textColor="#FFFFFF"
+        android:translationX="0px"
+        android:translationY="230dp"
+        android:textSize="10sp"
+        android:paddingRight="0dp"
+        android:paddingLeft="0dp"
+        android:minHeight="0dp"
+        android:minWidth="0dp"
+        android:visibility="visible"></Button>
+
     <TextView
         android:id="@+id/notification_mode_Toggle_buttton_lable"
         android:layout_width="200dp"
         android:layout_height="30dp"
         android:translationX="0dp"
-        android:translationY="220dp"
+        android:translationY="300dp"
         android:textSize="12sp"
         android:paddingRight="0dp"
         android:paddingLeft="0dp"
@@ -139,7 +155,7 @@
         android:layout_height="30dp"
         android:background="#000000"
         android:translationX="0dp"
-        android:translationY="240dp"
+        android:translationY="320dp"
         android:textSize="10sp"
         android:paddingRight="0dp"
         android:paddingLeft="0dp"

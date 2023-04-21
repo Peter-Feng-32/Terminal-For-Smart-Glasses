@@ -32,6 +32,7 @@ import com.termux.app.TermuxActivity;
 import com.termux.app.TermuxService;
 import com.termux.app.dailydriver.NotificationListener;
 import com.termux.app.terminal.TermuxTerminalSessionClient;
+import com.termux.app.tooz.FrameDriver;
 import com.termux.view.ToozConstants;
 import com.termux.app.tooz.ToozDriver;
 import com.termux.shared.termux.shell.command.runner.terminal.TermuxSession;
@@ -163,6 +164,18 @@ public class CaptioningFragment extends Fragment {
             }
         });
 
+        NotificationListener.clearNotificationQueue();
+        Button clearNotificationsButton = view.findViewById(R.id.btn_clear_notifications);
+        clearNotificationsButton.setOnClickListener(new View.OnClickListener()
+        {
+            @Override
+            public void onClick(View v)
+            {
+                NotificationListener.clearNotificationQueue();
+            }
+        });
+
+
         ToggleButton notificationModeToggleButton = view.findViewById(R.id.notification_mode_toggle_button);
         notificationModeToggleButton.setChecked(NotificationListener.mode == NotificationListener.Mode.TOSS_TWICE);
         notificationModeToggleButton.setOnClickListener(new View.OnClickListener()
@@ -189,6 +202,13 @@ public class CaptioningFragment extends Fragment {
             .setStyle(new NotificationCompat.BigTextStyle()
                 .bigText("Hey Thad, see you at dinner!"))
             .setPriority(NotificationCompat.PRIORITY_DEFAULT);
+
+        Log.w("onCreateView", "Test ConnectionTest");
+
+
+        //Clear all existing notifications.
+
+
         return view;
     }
 
@@ -196,6 +216,16 @@ public class CaptioningFragment extends Fragment {
     public void onDestroy() {
         if(captioningOn) stopCaptioning();
         super.onDestroy();
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+
+        FrameDriver frameDriver = FrameDriver.getInstance();
+        if (!frameDriver.isConnected()) {
+            frameDriver.searchAndConnect();
+        }
     }
 
     /** Handle permissions */
@@ -210,8 +240,6 @@ public class CaptioningFragment extends Fragment {
                 return;
             }
         });
-
-
 
     private void initLanguageLocale() {
         // The default locale is en-US.
@@ -399,9 +427,6 @@ public class CaptioningFragment extends Fragment {
         toozDriver = new ToozDriver(terminalSession.getEmulator(), textSize, getContext());
         termuxActivity.getTermuxTerminalSessionClient().setToozDriver(toozDriver);
     }
-
-
-
 
     public void startNotificationSession() {
         if(NotificationManagerCompat.getEnabledListenerPackages(this.getContext()).contains(this.getContext().getPackageName())) {

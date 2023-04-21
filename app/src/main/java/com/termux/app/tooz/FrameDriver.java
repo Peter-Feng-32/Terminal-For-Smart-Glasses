@@ -37,6 +37,8 @@ import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class FrameDriver {
     InputStream connectionInputStream;
@@ -44,16 +46,18 @@ public class FrameDriver {
     ConnectThread connectThread;
     BluetoothSocket connectionSocket;
     BluetoothAdapter bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
-    boolean searching = false;
     String SERIAL_PORT_UUID= "00001101-0000-1000-8000-00805f9b34fb";
     int framesSent = 0;
     int messageCount = 1;
     String currFrame;
 
     final int SLIDING_WINDOW_SIZE = 40;
-
-
     Context context;
+
+    boolean searching = false;
+    public static Lock searchAndConnectLock = new ReentrantLock();
+
+
 
     private static FrameDriver frameDriver;
 
@@ -231,7 +235,7 @@ public class FrameDriver {
                     } catch (IOException ioException) {
                         ioException.printStackTrace();
                     }
-                    if(!searching) searchAndConnect(SERIAL_PORT_UUID);
+                    if(!searching) searchAndConnect();
                     return;
                 }
 
@@ -253,7 +257,7 @@ public class FrameDriver {
         //Connection code - see if we can optimize this later.
         if(!isConnected()) {
             currFrame = imageHexString;
-            if (!searching) searchAndConnect(SERIAL_PORT_UUID);
+            if (!searching) searchAndConnect();
         }
         if(isConnected())
         {
@@ -286,7 +290,7 @@ public class FrameDriver {
                         } catch (IOException ioException) {
                             ioException.printStackTrace();
                         }
-                        if(!searching) searchAndConnect(SERIAL_PORT_UUID);
+                        if(!searching) searchAndConnect();
                         return;
                     }
                 }});
@@ -300,7 +304,7 @@ public class FrameDriver {
         //Connection code - see if we can optimize this later.
         if(!isConnected()) {
             currFrame = imageHexString;
-            if (!searching) searchAndConnect(SERIAL_PORT_UUID);
+            if (!searching) searchAndConnect();
         }
         if(isConnected())
         {
@@ -334,7 +338,7 @@ public class FrameDriver {
                         } catch (IOException ioException) {
                             ioException.printStackTrace();
                         }
-                        if(!searching) searchAndConnect(SERIAL_PORT_UUID);
+                        if(!searching) searchAndConnect();
                         return;
                     }
                 }});
@@ -346,7 +350,7 @@ public class FrameDriver {
         //Connection code - see if we can optimize this later.
         if(!isConnected()) {
             currFrame = imageHexString;
-            if (!searching) searchAndConnect(SERIAL_PORT_UUID);
+            if (!searching) searchAndConnect();
         }
         if(isConnected())
         {
@@ -381,7 +385,7 @@ public class FrameDriver {
                         } catch (IOException ioException) {
                             ioException.printStackTrace();
                         }
-                        if(!searching) searchAndConnect(SERIAL_PORT_UUID);
+                        if(!searching) searchAndConnect();
                         return;
                     }
                 }});
@@ -391,7 +395,7 @@ public class FrameDriver {
 
     public int requestAccelerometerData(int millisecondsDelay, int timeout, TermuxTerminalSessionClient termuxTerminalSessionClient, ToozDriver notificationDriver) {
         if(!isConnected()) {
-            if (!searching) searchAndConnect(SERIAL_PORT_UUID);
+            if (!searching) searchAndConnect();
         }
         if(isConnected()) {
             Date date = new java.util.Date();
@@ -431,7 +435,7 @@ public class FrameDriver {
                         } catch (IOException ioException) {
                             ioException.printStackTrace();
                         }
-                        if(!searching) searchAndConnect(SERIAL_PORT_UUID);
+                        if(!searching) searchAndConnect();
                         return;
                     }
                 }});
@@ -489,7 +493,7 @@ public class FrameDriver {
 
     public int requestAccelerometerDataSilent(int millisecondsDelay, int timeout, TermuxTerminalSessionClient termuxTerminalSessionClient, ToozDriver notificationDriver) {
         if(!isConnected()) {
-            if (!searching) searchAndConnect(SERIAL_PORT_UUID);
+            if (!searching) searchAndConnect();
             return -1;
         }
         if(isConnected()) {
@@ -530,7 +534,7 @@ public class FrameDriver {
                         } catch (IOException ioException) {
                             ioException.printStackTrace();
                         }
-                        if(!searching) searchAndConnect(SERIAL_PORT_UUID);
+                        if(!searching) searchAndConnect();
                         return;
                     }
                 }});
@@ -591,40 +595,43 @@ public class FrameDriver {
         return header;
     }
 
-    synchronized protected void searchAndConnect(String str_UUID) {
-        searching = true;
-        Set<BluetoothDevice> pairedDevices = bluetoothAdapter.getBondedDevices();
-        if (pairedDevices.size() > 0) {
-            // There are paired devices. Get the name and address of each paired device.
-            for (BluetoothDevice device : pairedDevices) {
-                String deviceName = device.getName();
-                String deviceHardwareAddress = device.getAddress(); // MAC address
-                Log.w("Device Class", String.valueOf(device.getBluetoothClass().getDeviceClass()));
+    public void searchAndConnect() {
+        if(searchAndConnectLock.tryLock()){
+            String str_UUID = SERIAL_PORT_UUID;
+            searching = true;
+            Set<BluetoothDevice> pairedDevices = bluetoothAdapter.getBondedDevices();
+            if (pairedDevices.size() > 0) {
+                // There are paired devices. Get the name and address of each paired device.
+                for (BluetoothDevice device : pairedDevices) {
+                    String deviceName = device.getName();
+                    String deviceHardwareAddress = device.getAddress(); // MAC address
+                    Log.w("Device Class", String.valueOf(device.getBluetoothClass().getDeviceClass()));
 
-                //Temporary solution until I can figure out how to save devices and have a pairing scheme.
-                //Just check if device name starts with tooz.
-                //Maybe send this data to all device classes 1048(AUDIO_VIDEO_HEADPHONES)?
-                if(deviceName.length() >= 4 && deviceName.substring(0, 4).equals("tooz")) {
-                    if(connectThread == null || connectThread.getState() == Thread.State.TERMINATED){
-                        if(device.getUuids() == null) {
-                            Log.w("deviceName", "" + deviceName);
-                            continue;
+                    //Temporary solution until I can figure out how to save devices and have a pairing scheme.
+                    //Just check if device name starts with tooz.
+                    //Maybe send this data to all device classes 1048(AUDIO_VIDEO_HEADPHONES)?
+                    if(deviceName.length() >= 4 && deviceName.substring(0, 4).equals("tooz")) {
+                        if(connectThread == null || connectThread.getState() == Thread.State.TERMINATED){
+                            if(device.getUuids() == null) {
+                                Log.w("deviceName", "" + deviceName);
+                                continue;
+                            }
+                            connectThread = new ConnectThread(device, str_UUID);
+                            Log.w("UUID HardCoded", str_UUID);
+                            Log.w("UUIDS Gotten", "" + device.getUuids());
+                            for(ParcelUuid id: device.getUuids()) {
+                                Log.w("UUID List", id.toString());
+                            }
+                            Log.w("UUID getUuids", device.getUuids()[0].getUuid().toString());
+                            Log.w("Log", "Trying to connect to device address: " + deviceHardwareAddress + "using UUID: " + str_UUID);
+                            connectThread.start();
                         }
-                        //connectThread = new ConnectThread(device,  device.getUuids()[0].getUuid().toString(), true);
-                        connectThread = new ConnectThread(device,  str_UUID, true);
-                        Log.w("UUID HardCoded", str_UUID);
-                        Log.w("UUIDS Gotten", "" + device.getUuids());
-                        for(ParcelUuid id: device.getUuids()) {
-                            Log.w("UUID List", id.toString());
-                        }
-                        Log.w("UUID getUuids", device.getUuids()[0].getUuid().toString());
-                        Log.w("Log", "Trying to connect to device address: " + deviceHardwareAddress + "using UUID: " + str_UUID);
-                        connectThread.start();
                     }
                 }
             }
+            searching = false;
+            searchAndConnectLock.unlock();
         }
-        searching = false;
     }
 
     public boolean isConnected() {
@@ -634,16 +641,14 @@ public class FrameDriver {
     private class ConnectThread extends Thread {
         private BluetoothSocket mmSocket;
         private final BluetoothDevice mmDevice;
-        private boolean againIfFail;
         private String myUUID;
-        public ConnectThread(BluetoothDevice device, String myUUID, boolean againIfFail) {
+        public ConnectThread(BluetoothDevice device, String myUUID) {
             // Use a temporary object that is later assigned to mmSocket
             // because mmSocket is final.
 
             BluetoothSocket tmp = null;
             mmDevice = device;
             this.myUUID = myUUID;
-            this.againIfFail = againIfFail;
 
             try {
                 // Get a BluetoothSocket to connect with the given BluetoothDevice.
