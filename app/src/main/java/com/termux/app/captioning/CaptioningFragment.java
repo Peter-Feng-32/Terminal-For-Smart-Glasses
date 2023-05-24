@@ -20,6 +20,8 @@ import androidx.core.app.NotificationManagerCompat;
 import androidx.fragment.app.Fragment;
 
 import android.os.PowerManager;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.util.Log;
 import android.view.Display;
 import android.view.LayoutInflater;
@@ -49,6 +51,7 @@ import android.preference.PreferenceManager;
 import androidx.core.content.ContextCompat;
 import androidx.appcompat.app.AlertDialog;
 
+import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.ToggleButton;
 
@@ -65,9 +68,11 @@ public class CaptioningFragment extends Fragment {
 
     /** Captioning Library stuff */
     private static final String SHARE_PREF_API_KEY = "api_key";
-    private static final String SHARE_PREF_CAPTIONING_TEXT_SIZE = "12";
-    private final int SCREEN_WIDTH = 400;
-    private final int SCREEN_HEIGHT = 640;
+    private static final String SHARE_PREF_CAPTIONING_TEXT_SIZE = "captioning_text_size";
+    private static final String SHARE_PREF_TEXT_COLOR_HEX = "captioning_text_color_hex";
+    private static final String NOTIFICATIONS_ENABLED = "notifications_enabled";
+    private final int PHYS_SCREEN_WIDTH = 400;
+    private final int PHYS_SCREEN_HEIGHT = 640;
 
     private int currentLanguageCodePosition;
     private String currentLanguageCode;
@@ -76,6 +81,11 @@ public class CaptioningFragment extends Fragment {
     private TextView textSizeTextView;
     private boolean captioningOn = false;
     private boolean dailyDriverOn = false;
+
+    private int x = 100;
+    private int y = 0;
+    private int screen_height = 600;
+    private int screen_width = 200;
 
     public static ToozDriver toozDriver;
 
@@ -98,7 +108,6 @@ public class CaptioningFragment extends Fragment {
     public static synchronized CaptioningFragment getInstance() {
         return captioningFragment;
     }
-
 
     public CaptioningFragment() {
         // Required empty public constructor
@@ -144,6 +153,116 @@ public class CaptioningFragment extends Fragment {
             }
         });
 
+
+        //Color customizibility
+        EditText redColorEditText = view.findViewById(R.id.edit_text_color_red);
+        EditText greenColorEditText = view.findViewById(R.id.edit_text_color_green);
+        EditText blueColorEditText = view.findViewById(R.id.edit_text_color_blue);
+
+        //Load existing color
+
+        String existingColor = getTextColor(getActivity());
+        redColorEditText.setText("" + Integer.parseInt(existingColor.substring(0, 2), 16));
+        greenColorEditText.setText("" + Integer.parseInt(existingColor.substring(2, 4), 16));
+        blueColorEditText.setText("" + Integer.parseInt(existingColor.substring(4, 6), 16));
+
+
+        redColorEditText.addTextChangedListener(new TextWatcher(){
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+            }
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+                saveTextColor(getActivity(), s.toString(), greenColorEditText.getText().toString(), blueColorEditText.getText().toString());
+
+                String textColor = getTextColor(getActivity());
+                String redHex = textColor.substring(0, 2);
+                try{
+                    Log.w("CaptioningFragmentTest", "TextColor : " + textColor);
+                    Log.w("CaptioningFragmentTest", "Red : "  + redHex + " " + Integer.parseInt(redHex, 16));
+                }
+                catch(NumberFormatException e) {
+                    e.printStackTrace();
+                }
+
+                if(s.toString().equals("") || Integer.parseInt(s.toString()) < 0 || Integer.parseInt(s.toString()) > 255) {
+                    redColorEditText.removeTextChangedListener(this);
+                    redColorEditText.setText("" + Integer.parseInt(redHex, 16));
+                    redColorEditText.addTextChangedListener(this);
+                }
+
+                if(toozDriver != null) {
+                    toozDriver.setTextColor(0xff000000 + Integer.parseInt(textColor, 16));
+                }
+
+
+            }
+        });
+        greenColorEditText.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+
+                saveTextColor(getActivity(), redColorEditText.getText().toString(), s.toString(), blueColorEditText.getText().toString());
+
+                String textColor = getTextColor(getActivity());
+                String greenHex = textColor.substring(2, 4);
+
+                if(s.toString().equals("") || Integer.parseInt(s.toString()) < 0 || Integer.parseInt(s.toString()) > 255) {
+                    greenColorEditText.removeTextChangedListener(this);
+                    greenColorEditText.setText("" + Integer.parseInt(greenHex, 16));
+                    greenColorEditText.addTextChangedListener(this);
+                }
+
+                if(toozDriver != null) {
+                    toozDriver.setTextColor(0xff000000 + Integer.parseInt(textColor, 16));
+                }
+
+            }
+        });
+        blueColorEditText.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+
+                saveTextColor(getActivity(), redColorEditText.getText().toString(),  greenColorEditText.getText().toString(), s.toString());
+
+                String textColor = getTextColor(getActivity());
+                String blueHex = textColor.substring(4, 6);
+
+                if(s.toString().equals("") || Integer.parseInt(s.toString()) < 0 || Integer.parseInt(s.toString()) > 255) {
+                    blueColorEditText.removeTextChangedListener(this);
+                    blueColorEditText.setText("" + Integer.parseInt(blueHex, 16));
+                    blueColorEditText.addTextChangedListener(this);
+                }
+                if(toozDriver != null) {
+                    toozDriver.setTextColor(0xff000000 + Integer.parseInt(textColor,16));
+                }
+
+            }
+        });
+
+        //Notifications
         Button testNotificationButton = view.findViewById(R.id.btn_test_notification);
         testNotificationButton.setOnClickListener(new View.OnClickListener()
         {
@@ -160,11 +279,13 @@ public class CaptioningFragment extends Fragment {
             @Override
             public void onClick(View v)
             {
-                startNotificationSession();
+                toggleNotificationButton();
             }
         });
+        notificationSessionButton.setText(getNotificationsEnabled(getContext()) ? "Disable Notifications" : "Enable Notifications");
 
         NotificationListener.clearNotificationQueue();
+
         Button clearNotificationsButton = view.findViewById(R.id.btn_clear_notifications);
         clearNotificationsButton.setOnClickListener(new View.OnClickListener()
         {
@@ -174,7 +295,6 @@ public class CaptioningFragment extends Fragment {
                 NotificationListener.clearNotificationQueue();
             }
         });
-
 
         ToggleButton notificationModeToggleButton = view.findViewById(R.id.notification_mode_toggle_button);
         notificationModeToggleButton.setChecked(NotificationListener.mode == NotificationListener.Mode.TOSS_TWICE);
@@ -194,7 +314,6 @@ public class CaptioningFragment extends Fragment {
         TermuxActivity termuxActivity = (TermuxActivity) getActivity();
         NotificationListener.setTerminalSessionClient(termuxActivity.getTermuxTerminalSessionClient());
 
-
         notificationBuilder = new NotificationCompat.Builder(this.getActivity(), CHANNEL_ID)
             .setSmallIcon(R.drawable.banner)
             .setContentTitle("Message")
@@ -202,12 +321,6 @@ public class CaptioningFragment extends Fragment {
             .setStyle(new NotificationCompat.BigTextStyle()
                 .bigText("Hey Thad, see you at dinner!"))
             .setPriority(NotificationCompat.PRIORITY_DEFAULT);
-
-        Log.w("onCreateView", "Test ConnectionTest");
-
-
-        //Clear all existing notifications.
-
 
         return view;
     }
@@ -245,6 +358,22 @@ public class CaptioningFragment extends Fragment {
         // The default locale is en-US.
         currentLanguageCode = "en-US";
         currentLanguageCodePosition = 22;
+    }
+
+    private void toggleNotificationButton() {
+        if(getNotificationsEnabled(getContext())) {
+            Button button = getActivity().findViewById(R.id.btn_toggle_notifications);
+            saveNotificationsEnabled(getContext(), false);
+            NotificationListener.setEnabled(false);
+            button.setText("Enable Notifications");
+        } else {
+            Button button = getActivity().findViewById(R.id.btn_toggle_notifications);
+            startNotificationSession();
+            NotificationListener.setEnabled(true);
+            saveNotificationsEnabled(getContext(), true);
+            button.setText("Disable Notifications Notifications");
+        }
+
     }
 
     private void toggleCaptioningButton() {
@@ -311,7 +440,6 @@ public class CaptioningFragment extends Fragment {
     public void startNotificationListener() {
         Intent notificationIntent = new Intent(getActivity(), NotificationListener.class);
         getActivity().startService(notificationIntent);
-
     }
 
     public void startCaptioning() {
@@ -360,14 +488,19 @@ public class CaptioningFragment extends Fragment {
                 return;
             }
 
+
+            //Get screen size and position here from UI.
+            //Use in calculate paint to determine number of rows + columns.
+            //Set x and y as parameters in ToozDriver
+            //Update bitmap sizes in ToozDriver
+
             Paint captionPaint = makePaint(textSize);
             terminalSession.updateSize(calculateColsInScreen(captionPaint), calculateRowsInScreen(captionPaint));
             CaptioningService.textSize = textSize;
             CaptioningService.setTerminalEmulator(terminalSession.getEmulator());
             CaptioningService.setTerminalSession(terminalSession);
-            Log.w("CaptioningFragment", "columns: " + SCREEN_WIDTH/textSize + " rows: " + SCREEN_HEIGHT/textSize);
 
-            toozDriver = new ToozDriver(terminalSession.getEmulator(), textSize, this.getContext());
+            toozDriver = new ToozDriver(terminalSession.getEmulator(), textSize, 0xff000000 + Integer.parseInt(getTextColor(getActivity()), 16), this.getContext(), screen_width, screen_height, x, y);
             termuxActivity.getTermuxTerminalSessionClient().setToozDriver(toozDriver);
             Intent captioningIntent = new Intent(getActivity(), CaptioningService.class);
             getActivity().startService(captioningIntent);
@@ -424,7 +557,7 @@ public class CaptioningFragment extends Fragment {
 
         Paint toozPaint = makePaint(textSize);
         terminalSession.updateSize(calculateColsInScreen(toozPaint), calculateRowsInScreen(toozPaint));
-        toozDriver = new ToozDriver(terminalSession.getEmulator(), textSize, getContext());
+        toozDriver = new ToozDriver(terminalSession.getEmulator(), textSize, 0xff000000 + Integer.parseInt(getTextColor(getActivity()), 16), getContext(), screen_width, screen_height, x, y);
         termuxActivity.getTermuxTerminalSessionClient().setToozDriver(toozDriver);
     }
 
@@ -465,12 +598,11 @@ public class CaptioningFragment extends Fragment {
 
             Paint toozPaint = makePaint(textSize);
             terminalSession.updateSize(calculateColsInScreen(toozPaint), calculateRowsInScreen(toozPaint));
-            toozDriver = new ToozDriver(terminalSession.getEmulator(), textSize, getContext());
+            toozDriver = new ToozDriver(terminalSession.getEmulator(), textSize, 0xff000000 + Integer.parseInt(getTextColor(getActivity()), 16), getContext(), screen_width, screen_height, x, y);
 
             NotificationListener.setTerminalSession(terminalSession);
             NotificationListener.setToozDriver(toozDriver);
             NotificationListener.setTerminalSessionClient(termuxActivity.getTermuxTerminalSessionClient());
-            NotificationListener.setEnabled(true);
             Log.w("Captioning Fragment", "Starting Notifications");
             startNotificationListener();
         } else {
@@ -500,11 +632,11 @@ public class CaptioningFragment extends Fragment {
     }
 
     private int calculateColsInScreen(Paint paint) {
-        return (int)(SCREEN_WIDTH / paint.measureText("X"));
+        return (int)(screen_width / paint.measureText("X"));
     }
 
     private int calculateRowsInScreen(Paint paint) {
-        return (SCREEN_HEIGHT - (int) Math.ceil(paint.getFontSpacing()) - (int) Math.ceil(paint.ascent())) / (int) Math.ceil(paint.getFontSpacing());
+        return (screen_height - (int) Math.ceil(paint.getFontSpacing()) - (int) Math.ceil(paint.ascent())) / (int) Math.ceil(paint.getFontSpacing());
     }
 
     public void stopCaptioning() {
@@ -566,7 +698,6 @@ public class CaptioningFragment extends Fragment {
                 .commit();
             return "50";
         }
-
     }
 
     /** Gets the API key from shared preference. */
@@ -574,6 +705,93 @@ public class CaptioningFragment extends Fragment {
         return PreferenceManager.getDefaultSharedPreferences(context).getString(SHARE_PREF_CAPTIONING_TEXT_SIZE, "40");
     }
 
+    /** Saves the API Key in user shared preference. */
+    private static String saveTextColor(Context context, String red, String green, String blue) {
+        String hexCode = "";
+        String redHex;
+        String greenHex;
+        String blueHex;
+
+        try{
+            if(red.equals("")) {
+                redHex = "00";
+            }
+            else if(Integer.parseInt(red) < 0) {
+                redHex = "00";
+            }
+            else if(Integer.parseInt(red) > 255) {
+                redHex = "FF";
+            }
+            else {
+                redHex = String.format("%1$02X", Integer.parseInt(red));
+            }
+            if(green.equals("")) {
+                greenHex = "00";
+            }
+            else if(Integer.parseInt(green) < 0) {
+                greenHex = "00";
+            }
+            else if(Integer.parseInt(green) > 255) {
+                greenHex = "FF";
+            }
+            else {
+                greenHex = String.format("%1$02X", Integer.parseInt(green));
+            }
+            if(blue.equals("")) {
+                blueHex = "00";
+            }
+            else if(Integer.parseInt(blue) < 0) {
+                blueHex = "00";
+            }
+            else if(Integer.parseInt(blue) > 255) {
+                blueHex = "FF";
+            }
+            else {
+                blueHex = String.format("%1$02X", Integer.parseInt(blue));
+            }
+        }catch(NumberFormatException e) {
+            e.printStackTrace();
+            PreferenceManager.getDefaultSharedPreferences(context)
+                .edit()
+                .putString(SHARE_PREF_TEXT_COLOR_HEX, "00FF00")
+                .commit();
+            return "00FF00";
+
+        }
+        hexCode += redHex;
+        hexCode += greenHex;
+        hexCode += blueHex;
+
+        PreferenceManager.getDefaultSharedPreferences(context)
+            .edit()
+            .putString(SHARE_PREF_TEXT_COLOR_HEX, hexCode)
+            .commit();
+
+        return hexCode;
+    }
+
+    private static String getTextColor(Context context) {
+        return PreferenceManager.getDefaultSharedPreferences(context).getString(SHARE_PREF_TEXT_COLOR_HEX, "00FF00");
+    }
+
+    private static boolean saveNotificationsEnabled(Context context, boolean notificationsEnabled) {
+        if(notificationsEnabled) {
+            PreferenceManager.getDefaultSharedPreferences(context)
+                .edit()
+                .putString(NOTIFICATIONS_ENABLED, "true")
+                .commit();
+        } else {
+            PreferenceManager.getDefaultSharedPreferences(context)
+                .edit()
+                .putString(NOTIFICATIONS_ENABLED, "false")
+                .commit();
+        }
+        return notificationsEnabled;
+    }
+
+    public static boolean getNotificationsEnabled(Context context) {
+        return PreferenceManager.getDefaultSharedPreferences(context).getString(NOTIFICATIONS_ENABLED, "true").equals("true");
+    }
 
     /** Notification Testing **/
 

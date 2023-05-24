@@ -300,6 +300,56 @@ public class FrameDriver {
         return -1;
     }
 
+
+    public int sendFullFrame(String imageHexString, int x, int y) {
+        //Connection code - see if we can optimize this later.
+        if(!isConnected()) {
+            currFrame = imageHexString;
+            if (!searching) searchAndConnect();
+        }
+        if(isConnected())
+        {
+            FrameBlock frameBlock = new FrameBlock(framesSent++);
+            frameBlock.setX(x);
+            frameBlock.setY(y);
+            byte[] headerBytes = generateHeader(imageHexString, frameBlock);
+            byte[] frameIDBlockBytes = frameBlock.serialize();
+            byte[] imageBytes = DriverHelper.hexStringToByteArray(imageHexString);
+            byte[] ending = {0x13};
+            byte[] byteStream = ArrayUtils.addAll(headerBytes, frameIDBlockBytes);
+            byteStream = ArrayUtils.addAll(byteStream, imageBytes);
+            byteStream = ArrayUtils.addAll(byteStream, ending);
+
+            byte[] finalByteStream = byteStream;
+            Thread t1 = new Thread(new Runnable() {
+                public void run()
+                {
+                    try {
+                        if (connectionOutputStream != null) {
+                            connectionOutputStream.write(finalByteStream);
+                            //Log.w("Sent Data", "Sent sendBuffer successfully");
+                            //Log.w("Image", imageHexString);
+                            framesSent++;
+                        } else {
+                            Log.w("Connection", "Not connected, can't send data.");
+                        }
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                        try {
+                            connectionOutputStream.close();
+                        } catch (IOException ioException) {
+                            ioException.printStackTrace();
+                        }
+                        if(!searching) searchAndConnect();
+                        return;
+                    }
+                }});
+            t1.start();
+            return 0;
+        }
+        return -1;
+    }
+
     public void sendRows(String imageHexString) {
         //Connection code - see if we can optimize this later.
         if(!isConnected()) {
@@ -645,7 +695,6 @@ public class FrameDriver {
         public ConnectThread(BluetoothDevice device, String myUUID) {
             // Use a temporary object that is later assigned to mmSocket
             // because mmSocket is final.
-
             BluetoothSocket tmp = null;
             mmDevice = device;
             this.myUUID = myUUID;
@@ -711,7 +760,6 @@ public class FrameDriver {
             byte[] byteArray = out.toByteArray();
             String s = DriverHelper.bytesToHex(byteArray);
             sendFullFrame(s);
-
         }
 
         // Closes the client socket and causes the thread to finish.

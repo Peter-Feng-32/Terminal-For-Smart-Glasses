@@ -22,6 +22,7 @@ import androidx.annotation.Nullable;
 
 import com.termux.R;
 import com.termux.app.captioning.CaptioningFragment;
+import com.termux.app.dailydriver.NotificationListener;
 import com.termux.app.settings.properties.TermuxAppSharedProperties;
 import com.termux.app.terminal.TermuxTerminalSessionClient;
 import com.termux.app.utils.PluginUtils;
@@ -549,7 +550,11 @@ public final class TermuxService extends Service implements AppShell.AppShellCli
 
 
         Log.w("TermuxService", CaptioningFragment.getInstance().testString);
-        CaptioningFragment.getInstance().startNotificationSession();
+        if(CaptioningFragment.getInstance().getNotificationsEnabled(CaptioningFragment.getInstance().getActivity())) {
+            CaptioningFragment.getInstance().startNotificationSession();
+            NotificationListener.setEnabled(true);
+
+        }
 
         return newTermuxSession;
     }

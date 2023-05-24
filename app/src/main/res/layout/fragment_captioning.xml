@@ -165,5 +165,65 @@
         android:textColor="@color/white"
         />
 
+    <TextView
+        android:id="@+id/text_color_red_text_view"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Red"
+        android:textColor="@color/black"
+        android:translationY="360dp" />
+
+    <EditText
+        android:id="@+id/edit_text_color_red"
+        android:layout_width="68dp"
+        android:layout_height="40dp"
+        android:ems="10"
+        android:inputType="number"
+        android:textSize="10sp"
+        android:textColor="@color/black"
+        android:translationX="0px"
+        android:translationY="370dp" />
+
+    <TextView
+        android:id="@+id/text_color_green_text_view"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Green"
+        android:textColor="@color/black"
+        android:translationX="100dp"
+        android:translationY="360dp" />
+
+    <EditText
+        android:id="@+id/edit_text_color_green"
+        android:layout_width="68dp"
+        android:layout_height="40dp"
+        android:ems="10"
+        android:inputType="number"
+        android:textSize="10sp"
+        android:textColor="@color/black"
+        android:translationX="100dp"
+        android:translationY="370dp" />
+
+    <TextView
+        android:id="@+id/text_color_blue_text_view"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Blue"
+        android:textColor="@color/black"
+        android:translationX="200dp"
+        android:translationY="360dp" />
+
+    <EditText
+        android:id="@+id/edit_text_color_blue"
+        android:layout_width="68dp"
+        android:layout_height="40dp"
+        android:ems="10"
+        android:inputType="number"
+        android:textSize="10sp"
+        android:textColor="@color/black"
+        android:translationX="200dp"
+        android:translationY="370dp" />
+
+
 
 </FrameLayout>

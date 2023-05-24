@@ -33,7 +33,7 @@ public class ToozRenderer {
 
     public int toozColor;
 
-    public ToozRenderer(Paint paint) {
+    public ToozRenderer(Paint paint, int toozColor) {
         /**Tooz */
         mTextPaintTooz = paint;
         mTextSizeTooz = mTextPaintTooz.getTextSize();
@@ -49,8 +49,11 @@ public class ToozRenderer {
             asciiMeasures[i] = mTextPaintTooz.measureText(sb, 0, 1);
         }
 
-        //Default Tooz text rendering color to green.
-        toozColor = 0xff00ff00;
+        this.toozColor = toozColor;
+    }
+
+    public void setToozColor(int toozColor) {
+        this.toozColor = toozColor;
     }
 
     /** Render the terminal to a canvas with at a specified row scroll, and an optional rectangular selection. */
@@ -621,10 +624,6 @@ public class ToozRenderer {
         }
 
         if (savedMatrix) canvas.restore();
-    }
-
-    public void setToozColor(int color) {
-        this.toozColor = color;
     }
 
     public final void renderBoxToTooz(TerminalEmulator mEmulator, Canvas canvas,

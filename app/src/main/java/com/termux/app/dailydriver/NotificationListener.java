@@ -75,9 +75,6 @@ public class NotificationListener extends NotificationListenerService {
 
                     StatusBarNotification sbn = notifications.take();
                     Log.w(TAG, "After Take");
-
-
-
                     String pack = sbn.getPackageName();
                     final PackageManager pm = getApplicationContext().getPackageManager();
                     ApplicationInfo ai;

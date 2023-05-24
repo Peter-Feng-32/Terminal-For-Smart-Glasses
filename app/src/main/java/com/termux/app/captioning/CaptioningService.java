@@ -87,16 +87,13 @@ public class CaptioningService extends Service {
                     Log.w("FC", "Finalized");
                     String escapeSeq = "\033[2J\033[H"; //Clear screen and move cursor to top left.
                     formatter.resetSavedCaption();
-
                     terminalEmulator.append(escapeSeq.getBytes(), escapeSeq.getBytes(StandardCharsets.UTF_8).length);
-
                 }
                 handleCaption(formattedTranscript.toString());
             }
             if(updateType == TranscriptionResultUpdatePublisher.UpdateType.TRANSCRIPT_FINALIZED) {
                 recognizer.resetAndClearTranscript();
                 prevUpdateType = TranscriptionResultUpdatePublisher.UpdateType.TRANSCRIPT_FINALIZED;
-
             }
         };
 
@@ -109,7 +106,7 @@ public class CaptioningService extends Service {
             recognizer.init(CHUNK_SIZE_SAMPLES);
             while (audioRecord.getRecordingState() == AudioRecord.RECORDSTATE_RECORDING) {
                 audioRecord.read(buffer, 0, CHUNK_SIZE_SAMPLES * BYTES_PER_SAMPLE);
-                recognizer.processAudioBytes(buffer);
+                recognizer. processAudioBytes(buffer);
             }
             recognizer.stop();
         };
@@ -146,13 +143,11 @@ public class CaptioningService extends Service {
                 }
             }
         }
-
         terminalSession.notifyScreenUpdate();
     }
 
     public CaptioningService() {
     }
-
 
     @Override
     public IBinder onBind(Intent intent) {
@@ -201,9 +196,6 @@ public class CaptioningService extends Service {
         // The default locale is en-US.
         currentLanguageCode = "en-US";
         currentLanguageCodePosition = 22;
-
-
-        
     }
 
     private void constructRepeatingRecognitionSession() {
