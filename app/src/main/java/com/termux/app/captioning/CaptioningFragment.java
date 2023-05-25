@@ -21,6 +21,7 @@ import androidx.fragment.app.Fragment;
 
 import android.os.PowerManager;
 import android.text.Editable;
+import android.text.InputFilter;
 import android.text.TextWatcher;
 import android.util.Log;
 import android.view.Display;
@@ -35,6 +36,7 @@ import com.termux.app.TermuxService;
 import com.termux.app.dailydriver.NotificationListener;
 import com.termux.app.terminal.TermuxTerminalSessionClient;
 import com.termux.app.tooz.FrameDriver;
+import com.termux.app.utils.InputFilterMinMax;
 import com.termux.view.ToozConstants;
 import com.termux.app.tooz.ToozDriver;
 import com.termux.shared.termux.shell.command.runner.terminal.TermuxSession;
@@ -73,6 +75,8 @@ public class CaptioningFragment extends Fragment {
     private static final String NOTIFICATIONS_ENABLED = "notifications_enabled";
     private final int PHYS_SCREEN_WIDTH = 400;
     private final int PHYS_SCREEN_HEIGHT = 640;
+    private final int MIN_SCREEN_WIDTH = 200;
+    private final int MIN_SCREEN_HEIGHT = 200;
 
     private int currentLanguageCodePosition;
     private String currentLanguageCode;
@@ -82,14 +86,15 @@ public class CaptioningFragment extends Fragment {
     private boolean captioningOn = false;
     private boolean dailyDriverOn = false;
 
-    private int x = 100;
+    private int x = 0;
     private int y = 0;
-    private int screen_height = 600;
-    private int screen_width = 200;
+    private int screen_height = 640;
+    private int screen_width = 400;
 
     public static ToozDriver toozDriver;
 
     private static CaptioningFragment captioningFragment;
+    View fragmentView;
 
     public String testString = "test";  //Marker for where we start notifications.
     /**
@@ -125,6 +130,8 @@ public class CaptioningFragment extends Fragment {
                              Bundle savedInstanceState) {
         // Inflate the layout for this fragment
         View view = inflater.inflate(R.layout.fragment_captioning, container, false);
+        fragmentView = view;
+
 
         apiKeyEditView = view.findViewById(R.id.captioning_api_key_input);
         apiKeyEditView.setText(getApiKey(getActivity()));
@@ -153,19 +160,57 @@ public class CaptioningFragment extends Fragment {
             }
         });
 
-
+        //Screen params
+        EditText xEditText = fragmentView.findViewById(R.id.edit_text_x_position);
+        EditText yEditText = fragmentView.findViewById(R.id.edit_text_y_position);
+        EditText widthEditText = fragmentView.findViewById(R.id.edit_text_screen_width);
+        EditText heightEditText = fragmentView.findViewById(R.id.edit_text_screen_height);
+        updateScreenParams();
+        xEditText.setOnFocusChangeListener(new View.OnFocusChangeListener() {
+            @Override
+            public void onFocusChange(View v, boolean hasFocus) {
+                if(!hasFocus) {
+                    updateScreenParams();
+                }
+            }
+        });
+        yEditText.setOnFocusChangeListener(new View.OnFocusChangeListener() {
+            @Override
+            public void onFocusChange(View v, boolean hasFocus) {
+                if(!hasFocus) {
+                    updateScreenParams();
+                }
+            }
+        });
+        heightEditText.setOnFocusChangeListener(new View.OnFocusChangeListener() {
+            @Override
+            public void onFocusChange(View v, boolean hasFocus) {
+                if(!hasFocus) {
+                    updateScreenParams();
+                }
+            }
+        });
+        widthEditText.setOnFocusChangeListener(new View.OnFocusChangeListener() {
+            @Override
+            public void onFocusChange(View v, boolean hasFocus) {
+                if(!hasFocus) {
+                    updateScreenParams();
+                }
+            }
+        });
         //Color customizibility
         EditText redColorEditText = view.findViewById(R.id.edit_text_color_red);
         EditText greenColorEditText = view.findViewById(R.id.edit_text_color_green);
         EditText blueColorEditText = view.findViewById(R.id.edit_text_color_blue);
+        redColorEditText.setFilters(new InputFilter[]{ new InputFilterMinMax("0", "255")});
+        blueColorEditText.setFilters(new InputFilter[]{ new InputFilterMinMax("0", "255")});
+        greenColorEditText.setFilters(new InputFilter[]{ new InputFilterMinMax("0", "255")});
 
         //Load existing color
-
         String existingColor = getTextColor(getActivity());
         redColorEditText.setText("" + Integer.parseInt(existingColor.substring(0, 2), 16));
         greenColorEditText.setText("" + Integer.parseInt(existingColor.substring(2, 4), 16));
         blueColorEditText.setText("" + Integer.parseInt(existingColor.substring(4, 6), 16));
-
 
         redColorEditText.addTextChangedListener(new TextWatcher(){
             @Override
@@ -177,29 +222,15 @@ public class CaptioningFragment extends Fragment {
 
             @Override
             public void afterTextChanged(Editable s) {
-                saveTextColor(getActivity(), s.toString(), greenColorEditText.getText().toString(), blueColorEditText.getText().toString());
-
+                String hexColorChanged = s.toString();
+                if(hexColorChanged.equals("")) {
+                    hexColorChanged = "0";
+                }
+                saveTextColor(getActivity(), hexColorChanged, greenColorEditText.getText().toString(), blueColorEditText.getText().toString());
                 String textColor = getTextColor(getActivity());
-                String redHex = textColor.substring(0, 2);
-                try{
-                    Log.w("CaptioningFragmentTest", "TextColor : " + textColor);
-                    Log.w("CaptioningFragmentTest", "Red : "  + redHex + " " + Integer.parseInt(redHex, 16));
-                }
-                catch(NumberFormatException e) {
-                    e.printStackTrace();
-                }
-
-                if(s.toString().equals("") || Integer.parseInt(s.toString()) < 0 || Integer.parseInt(s.toString()) > 255) {
-                    redColorEditText.removeTextChangedListener(this);
-                    redColorEditText.setText("" + Integer.parseInt(redHex, 16));
-                    redColorEditText.addTextChangedListener(this);
-                }
-
                 if(toozDriver != null) {
                     toozDriver.setTextColor(0xff000000 + Integer.parseInt(textColor, 16));
                 }
-
-
             }
         });
         greenColorEditText.addTextChangedListener(new TextWatcher() {
@@ -214,18 +245,12 @@ public class CaptioningFragment extends Fragment {
 
             @Override
             public void afterTextChanged(Editable s) {
-
-                saveTextColor(getActivity(), redColorEditText.getText().toString(), s.toString(), blueColorEditText.getText().toString());
-
-                String textColor = getTextColor(getActivity());
-                String greenHex = textColor.substring(2, 4);
-
-                if(s.toString().equals("") || Integer.parseInt(s.toString()) < 0 || Integer.parseInt(s.toString()) > 255) {
-                    greenColorEditText.removeTextChangedListener(this);
-                    greenColorEditText.setText("" + Integer.parseInt(greenHex, 16));
-                    greenColorEditText.addTextChangedListener(this);
+                String hexColorChanged = s.toString();
+                if(hexColorChanged.equals("")) {
+                    hexColorChanged = "0";
                 }
-
+                saveTextColor(getActivity(), redColorEditText.getText().toString(), hexColorChanged, blueColorEditText.getText().toString());
+                String textColor = getTextColor(getActivity());
                 if(toozDriver != null) {
                     toozDriver.setTextColor(0xff000000 + Integer.parseInt(textColor, 16));
                 }
@@ -244,21 +269,15 @@ public class CaptioningFragment extends Fragment {
 
             @Override
             public void afterTextChanged(Editable s) {
-
-                saveTextColor(getActivity(), redColorEditText.getText().toString(),  greenColorEditText.getText().toString(), s.toString());
-
-                String textColor = getTextColor(getActivity());
-                String blueHex = textColor.substring(4, 6);
-
-                if(s.toString().equals("") || Integer.parseInt(s.toString()) < 0 || Integer.parseInt(s.toString()) > 255) {
-                    blueColorEditText.removeTextChangedListener(this);
-                    blueColorEditText.setText("" + Integer.parseInt(blueHex, 16));
-                    blueColorEditText.addTextChangedListener(this);
+                String hexColorChanged = s.toString();
+                if(hexColorChanged.equals("")) {
+                    hexColorChanged = "0";
                 }
+                saveTextColor(getActivity(), redColorEditText.getText().toString(),  greenColorEditText.getText().toString(), hexColorChanged);
+                String textColor = getTextColor(getActivity());
                 if(toozDriver != null) {
                     toozDriver.setTextColor(0xff000000 + Integer.parseInt(textColor,16));
                 }
-
             }
         });
 
@@ -371,7 +390,7 @@ public class CaptioningFragment extends Fragment {
             startNotificationSession();
             NotificationListener.setEnabled(true);
             saveNotificationsEnabled(getContext(), true);
-            button.setText("Disable Notifications Notifications");
+            button.setText("Disable Notifications");
         }
 
     }
@@ -495,11 +514,11 @@ public class CaptioningFragment extends Fragment {
             //Update bitmap sizes in ToozDriver
 
             Paint captionPaint = makePaint(textSize);
+            updateScreenParams();
             terminalSession.updateSize(calculateColsInScreen(captionPaint), calculateRowsInScreen(captionPaint));
             CaptioningService.textSize = textSize;
             CaptioningService.setTerminalEmulator(terminalSession.getEmulator());
             CaptioningService.setTerminalSession(terminalSession);
-
             toozDriver = new ToozDriver(terminalSession.getEmulator(), textSize, 0xff000000 + Integer.parseInt(getTextColor(getActivity()), 16), this.getContext(), screen_width, screen_height, x, y);
             termuxActivity.getTermuxTerminalSessionClient().setToozDriver(toozDriver);
             Intent captioningIntent = new Intent(getActivity(), CaptioningService.class);
@@ -556,6 +575,7 @@ public class CaptioningFragment extends Fragment {
         }
 
         Paint toozPaint = makePaint(textSize);
+        updateScreenParams();
         terminalSession.updateSize(calculateColsInScreen(toozPaint), calculateRowsInScreen(toozPaint));
         toozDriver = new ToozDriver(terminalSession.getEmulator(), textSize, 0xff000000 + Integer.parseInt(getTextColor(getActivity()), 16), getContext(), screen_width, screen_height, x, y);
         termuxActivity.getTermuxTerminalSessionClient().setToozDriver(toozDriver);
@@ -597,6 +617,7 @@ public class CaptioningFragment extends Fragment {
             }
 
             Paint toozPaint = makePaint(textSize);
+            updateScreenParams();
             terminalSession.updateSize(calculateColsInScreen(toozPaint), calculateRowsInScreen(toozPaint));
             toozDriver = new ToozDriver(terminalSession.getEmulator(), textSize, 0xff000000 + Integer.parseInt(getTextColor(getActivity()), 16), getContext(), screen_width, screen_height, x, y);
 
@@ -629,6 +650,57 @@ public class CaptioningFragment extends Fragment {
         paint.setAntiAlias(true);
         paint.setTextSize(textSize);
         return paint;
+    }
+
+    private void updateScreenParams() {
+        //As of now this must come before calculateColsAndRows in screen because the latter relies on the
+        //params that this function updates.
+        if(fragmentView == null) {
+            return;
+        }
+
+        EditText xEditText = fragmentView.findViewById(R.id.edit_text_x_position);
+        EditText yEditText = fragmentView.findViewById(R.id.edit_text_y_position);
+        EditText widthEditText = fragmentView.findViewById(R.id.edit_text_screen_width);
+        EditText heightEditText = fragmentView.findViewById(R.id.edit_text_screen_height);
+
+
+        x = xEditText.getText().toString().equals("") ? 0 : Integer.parseInt(xEditText.getText().toString());
+        y = yEditText.getText().toString().equals("") ? 0 : Integer.parseInt(yEditText.getText().toString());
+        if(xEditText.getText().toString().equals("")) {
+            xEditText.setText(Integer.toString(0));
+        }
+        if(yEditText.getText().toString().equals("")) {
+            yEditText.setText(Integer.toString(0));
+        }
+
+
+        screen_height = heightEditText.getText().toString().equals("") ? PHYS_SCREEN_HEIGHT - y : Integer.parseInt(heightEditText.getText().toString());
+        screen_width = widthEditText.getText().toString().equals("") ? PHYS_SCREEN_WIDTH - x : Integer.parseInt(widthEditText.getText().toString());
+        if(heightEditText.getText().toString().equals("")) {
+            heightEditText.setText(Integer.toString(PHYS_SCREEN_HEIGHT - y));
+        }
+        if(widthEditText.getText().toString().equals("")) {
+            widthEditText.setText(Integer.toString(PHYS_SCREEN_WIDTH - x));
+        }
+
+        if(screen_height < MIN_SCREEN_HEIGHT) {
+            screen_height = MIN_SCREEN_HEIGHT;
+            heightEditText.setText(Integer.toString(MIN_SCREEN_HEIGHT));
+        }
+        if(screen_width < MIN_SCREEN_WIDTH) {
+            screen_width = MIN_SCREEN_WIDTH;
+            widthEditText.setText(Integer.toString(MIN_SCREEN_WIDTH));
+        }
+
+        Log.w("ScreenParams", screen_height + " " + screen_width + " " + x + " " + y);
+
+        xEditText.setFilters(new InputFilter[]{ new InputFilterMinMax("0", Integer.toString(PHYS_SCREEN_WIDTH - screen_width)  )});
+        yEditText.setFilters(new InputFilter[]{ new InputFilterMinMax("0", Integer.toString(PHYS_SCREEN_HEIGHT - screen_height)  )});
+        widthEditText.setFilters(new InputFilter[]{ new InputFilterMinMax("0", Integer.toString(PHYS_SCREEN_WIDTH - x)  )});
+        heightEditText.setFilters(new InputFilter[]{ new InputFilterMinMax("0", Integer.toString(PHYS_SCREEN_HEIGHT - y)  )});
+
+
     }
 
     private int calculateColsInScreen(Paint paint) {
@@ -713,42 +785,12 @@ public class CaptioningFragment extends Fragment {
         String blueHex;
 
         try{
-            if(red.equals("")) {
-                redHex = "00";
-            }
-            else if(Integer.parseInt(red) < 0) {
-                redHex = "00";
-            }
-            else if(Integer.parseInt(red) > 255) {
-                redHex = "FF";
-            }
-            else {
-                redHex = String.format("%1$02X", Integer.parseInt(red));
-            }
-            if(green.equals("")) {
-                greenHex = "00";
-            }
-            else if(Integer.parseInt(green) < 0) {
-                greenHex = "00";
-            }
-            else if(Integer.parseInt(green) > 255) {
-                greenHex = "FF";
-            }
-            else {
-                greenHex = String.format("%1$02X", Integer.parseInt(green));
-            }
-            if(blue.equals("")) {
-                blueHex = "00";
-            }
-            else if(Integer.parseInt(blue) < 0) {
-                blueHex = "00";
-            }
-            else if(Integer.parseInt(blue) > 255) {
-                blueHex = "FF";
-            }
-            else {
-                blueHex = String.format("%1$02X", Integer.parseInt(blue));
-            }
+            redHex = String.format("%1$02X", Integer.parseInt(red));
+
+            greenHex = String.format("%1$02X", Integer.parseInt(green));
+
+            blueHex = String.format("%1$02X", Integer.parseInt(blue));
+
         }catch(NumberFormatException e) {
             e.printStackTrace();
             PreferenceManager.getDefaultSharedPreferences(context)

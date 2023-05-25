@@ -171,18 +171,18 @@
         android:layout_height="wrap_content"
         android:text="Red"
         android:textColor="@color/black"
-        android:translationY="360dp" />
+        android:translationY="390dp" />
 
     <EditText
         android:id="@+id/edit_text_color_red"
         android:layout_width="68dp"
         android:layout_height="40dp"
-        android:ems="10"
         android:inputType="number"
         android:textSize="10sp"
         android:textColor="@color/black"
+        android:hint="0"
         android:translationX="0px"
-        android:translationY="370dp" />
+        android:translationY="400dp" />
 
     <TextView
         android:id="@+id/text_color_green_text_view"
@@ -190,19 +190,20 @@
         android:layout_height="wrap_content"
         android:text="Green"
         android:textColor="@color/black"
+        android:hint="0"
         android:translationX="100dp"
-        android:translationY="360dp" />
+        android:translationY="390dp" />
 
     <EditText
         android:id="@+id/edit_text_color_green"
         android:layout_width="68dp"
         android:layout_height="40dp"
-        android:ems="10"
         android:inputType="number"
         android:textSize="10sp"
         android:textColor="@color/black"
+        android:hint="0"
         android:translationX="100dp"
-        android:translationY="370dp" />
+        android:translationY="400dp" />
 
     <TextView
         android:id="@+id/text_color_blue_text_view"
@@ -211,7 +212,7 @@
         android:text="Blue"
         android:textColor="@color/black"
         android:translationX="200dp"
-        android:translationY="360dp" />
+        android:translationY="390dp" />
 
     <EditText
         android:id="@+id/edit_text_color_blue"
@@ -222,8 +223,85 @@
         android:textSize="10sp"
         android:textColor="@color/black"
         android:translationX="200dp"
-        android:translationY="370dp" />
+        android:translationY="400dp" />
+
+    <TextView
+        android:id="@+id/x_position_text_view"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="X"
+        android:textColor="@color/black"
+        android:translationY="440dp" />
+
+    <EditText
+        android:id="@+id/edit_text_x_position"
+        android:layout_width="30dp"
+        android:layout_height="40dp"
+        android:inputType="number"
+        android:textSize="10sp"
+        android:textColor="@color/black"
+        android:hint="0"
+        android:translationX="0px"
+        android:translationY="450dp" />
+
+    <TextView
+        android:id="@+id/y_position_text_view"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Y"
+        android:textColor="@color/black"
+        android:translationX="50dp"
+        android:translationY="440dp" />
+
+    <EditText
+        android:id="@+id/edit_text_y_position"
+        android:layout_width="30dp"
+        android:layout_height="40dp"
+        android:inputType="number"
+        android:textSize="10sp"
+        android:textColor="@color/black"
+        android:hint="0"
+        android:translationX="50dp"
+        android:translationY="450dp" />
 
 
+    <TextView
+        android:id="@+id/screen_width_text_view"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Width"
+        android:textColor="@color/black"
+        android:translationY="490dp" />
+
+    <EditText
+        android:id="@+id/edit_text_screen_width"
+        android:layout_width="30dp"
+        android:layout_height="40dp"
+        android:inputType="number"
+        android:textSize="10sp"
+        android:textColor="@color/black"
+        android:text="400"
+        android:translationX="0px"
+        android:translationY="500dp" />
+
+    <TextView
+        android:id="@+id/screen_height_text_view"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Height"
+        android:textColor="@color/black"
+        android:translationX="50dp"
+        android:translationY="490dp" />
+
+    <EditText
+        android:id="@+id/edit_text_screen_height"
+        android:layout_width="30dp"
+        android:layout_height="40dp"
+        android:inputType="number"
+        android:textSize="10sp"
+        android:textColor="@color/black"
+        android:text="640"
+        android:translationX="50dp"
+        android:translationY="500dp" />
 
 </FrameLayout>
