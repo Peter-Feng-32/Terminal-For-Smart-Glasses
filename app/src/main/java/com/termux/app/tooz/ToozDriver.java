@@ -91,7 +91,12 @@ public class ToozDriver {
         initializeScreenTrackingSilent();
         lockResizing();
     }
-
+    public int getX(){
+        return this.x;
+    }
+    public int getY(){
+        return this.y;
+    }
     public void setTextColor(int color) {
         if(toozRenderer != null) toozRenderer.setToozColor(color);
     }

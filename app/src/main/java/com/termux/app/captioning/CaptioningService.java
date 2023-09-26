@@ -3,6 +3,7 @@ package com.termux.app.captioning;
 import android.app.Service;
 import android.content.Intent;
 import android.os.Build;
+import android.os.Environment;
 import android.os.IBinder;
 
 import androidx.annotation.RequiresApi;
@@ -40,6 +41,10 @@ import com.termux.app.terminal.TermuxTerminalSessionClient;
 import com.termux.terminal.TerminalEmulator;
 import com.termux.terminal.TerminalSession;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 
@@ -49,6 +54,8 @@ public class CaptioningService extends Service {
     public static TerminalEmulator terminalEmulator;
     public static TerminalSession terminalSession;
     public static int textSize = 1;
+
+    public static boolean logging = true;
 
     /** Captioning Library stuff */
 
@@ -75,6 +82,8 @@ public class CaptioningService extends Service {
     private NetworkConnectionChecker networkChecker;
     private CloudSpeechSessionFactory factory;
 
+    File logs;
+
     //My start-stop implementation
     private TranscriptionResultUpdatePublisher.UpdateType prevUpdateType;
 
@@ -84,7 +93,6 @@ public class CaptioningService extends Service {
             if(updateType == TranscriptionResultUpdatePublisher.UpdateType.TRANSCRIPT_UPDATED) {
                 if(prevUpdateType == TranscriptionResultUpdatePublisher.UpdateType.TRANSCRIPT_FINALIZED) {
                     prevUpdateType = null;
-                    Log.w("FC", "Finalized");
                     String escapeSeq = "\033[2J\033[H"; //Clear screen and move cursor to top left.
                     formatter.resetSavedCaption();
                     terminalEmulator.append(escapeSeq.getBytes(), escapeSeq.getBytes(StandardCharsets.UTF_8).length);
@@ -92,6 +100,7 @@ public class CaptioningService extends Service {
                 handleCaption(formattedTranscript.toString());
             }
             if(updateType == TranscriptionResultUpdatePublisher.UpdateType.TRANSCRIPT_FINALIZED) {
+                writeToLogs(formattedTranscript.toString());
                 recognizer.resetAndClearTranscript();
                 prevUpdateType = TranscriptionResultUpdatePublisher.UpdateType.TRANSCRIPT_FINALIZED;
             }
@@ -111,24 +120,47 @@ public class CaptioningService extends Service {
             recognizer.stop();
         };
 
+    void writeToLogs(String transcript){
+        if(!logging) return;
+        Log.w("LOGGING", "Write to logs");
+        FileOutputStream stream = null;
+        try {
+            stream = new FileOutputStream(logs, true);
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
+        try {
+            stream.write(transcript.getBytes());
+            stream.write("\n".getBytes());
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            try {
+                stream.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
     private void handleCaption(String caption) {
         String escapeSeq = "\033[2J\033[H"; //Clear screen and move cursor to top left.
         terminalEmulator.append(escapeSeq.getBytes(), escapeSeq.getBytes(StandardCharsets.UTF_8).length);
 
         String formatted = formatter.process(caption);
         for(int i = 0; i <= ((formatted.length() - 1)/ formatter.numChars); i++) {
-            Log.w("Test", "i: " + i + " numChars: " + formatter.numChars);
-            Log.w("Test", formatted);
+            //Log.w("Test", "i: " + i + " numChars: " + formatter.numChars);
+            //Log.w("Test", formatted);
 
             for(int j = 0; j < Integer.min(formatter.rows, ((formatted.length() - 1) / formatter.cols + 1) - (i * formatter.rows) ); j++) {
-                Log.w("Test", "i: " + i + " j: " + j + " cols: " + formatter.cols + " numChars: " + formatter.numChars);
-                Log.w("Test", formatted);
-                Log.w("Test", "StartIndex: " + ((i * formatter.numChars) + (j * formatter.cols)) + " EndIndex: " + Integer.min((i * formatter.numChars) + (j+1) * formatter.cols, formatted.length()));
+                //Log.w("Test", "i: " + i + " j: " + j + " cols: " + formatter.cols + " numChars: " + formatter.numChars);
+                //Log.w("Test", formatted);
+                //Log.w("Test", "StartIndex: " + ((i * formatter.numChars) + (j * formatter.cols)) + " EndIndex: " + Integer.min((i * formatter.numChars) + (j+1) * formatter.cols, formatted.length()));
                 String substr = formatted.substring((i * formatter.numChars) + (j * formatter.cols), Integer.min((i * formatter.numChars) + (j+1) * formatter.cols, formatted.length()));
-                Log.w("Test", "Substr: " + substr);
+                //Log.w("Test", "Substr: " + substr);
                 terminalEmulator.append(substr.getBytes(StandardCharsets.UTF_8),substr.getBytes(StandardCharsets.UTF_8).length);
                 if(substr.length() < formatter.cols) {
-                    Log.w("Test", "CLEARTORIGHT");
+                    //Log.w("Test", "CLEARTORIGHT");
                     String clearToRight = "\033[0K"; //Clear screen to the right.
                     terminalEmulator.append(clearToRight.getBytes(StandardCharsets.UTF_8),clearToRight.getBytes(StandardCharsets.UTF_8).length);
                 }
@@ -180,6 +212,12 @@ public class CaptioningService extends Service {
             //If notification is being displayed(notification lock occupied) don't clear screen.
             Log.w("CaptioningServiceStart", "Notification Lock occupied");
         }
+        logs = new File(this.getExternalFilesDir(null), String.valueOf(System.currentTimeMillis()) + ".txt");
+        int x = ((TermuxTerminalSessionClient) terminalSession.getmClient()).getToozDriver().getX();
+        int y = ((TermuxTerminalSessionClient) terminalSession.getmClient()).getToozDriver().getY();
+        writeToLogs("Transcribing at X=" + x + " and Y=" + y);
+
+
         return super.onStartCommand(intent, flags, startId);
     }
 

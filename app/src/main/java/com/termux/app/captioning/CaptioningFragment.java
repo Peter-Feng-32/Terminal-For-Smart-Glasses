@@ -131,8 +131,6 @@ public class CaptioningFragment extends Fragment {
         // Inflate the layout for this fragment
         View view = inflater.inflate(R.layout.fragment_captioning, container, false);
         fragmentView = view;
-
-
         apiKeyEditView = view.findViewById(R.id.captioning_api_key_input);
         apiKeyEditView.setText(getApiKey(getActivity()));
         textSizeTextView = view.findViewById(R.id.editTextSize);
