@@ -4,6 +4,7 @@ import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.PorterDuff;
 import android.graphics.Typeface;
+import android.util.Log;
 
 import com.termux.terminal.TerminalBuffer;
 import com.termux.terminal.TerminalEmulator;
@@ -11,12 +12,14 @@ import com.termux.terminal.TerminalRow;
 import com.termux.terminal.TextStyle;
 import com.termux.terminal.WcWidth;
 
+import java.util.Arrays;
+
 /**
  * Renderer of a {@link TerminalEmulator} into a {@link Canvas}.
  * <p/>
  * Saves font metrics, so needs to be recreated each time the typeface or font size changes.
  */
-public final class TerminalRenderer {
+public class TerminalRenderer {
 
     final int mTextSize;
     final Typeface mTypeface;
@@ -238,6 +241,117 @@ public final class TerminalRenderer {
 
         if (savedMatrix) canvas.restore();
     }
+
+    public final void renderBoxToTooz(TerminalEmulator mEmulator, Canvas canvas,
+                                      int selectionY1, int selectionY2, int selectionX1, int selectionX2, int topRow, int endRow, int leftCol, int rightCol) {
+        final boolean reverseVideo = mEmulator.isReverseVideo();
+        int columns = mEmulator.mColumns;
+        final int cursorCol = mEmulator.getCursorCol();
+        final int cursorRow = mEmulator.getCursorRow();
+        final boolean cursorVisible = mEmulator.shouldCursorBeVisible();
+        final TerminalBuffer screen = mEmulator.getScreen();
+        final int[] palette = mEmulator.mColors.mCurrentColors;
+        final int cursorShape = mEmulator.getCursorStyle();
+
+        if (reverseVideo)
+            canvas.drawColor(palette[TextStyle.COLOR_INDEX_FOREGROUND], PorterDuff.Mode.SRC);
+
+        float heightOffset = 0;
+        for (int row = topRow; row < endRow; row++) {
+            heightOffset += mFontLineSpacing;
+            Log.w("Test", heightOffset + " " + mFontAscent + ' ' + mFontLineSpacing + ' ' + mFontLineSpacingAndAscent);
+            final int cursorX = (row == cursorRow && cursorVisible) ? cursorCol : -1;
+            int selx1 = -1, selx2 = -1;
+            if (row >= selectionY1 && row <= selectionY2) {
+                if (row == selectionY1) selx1 = selectionX1;
+                selx2 = (row == selectionY2) ? selectionX2 : mEmulator.mColumns;
+            }
+
+            TerminalRow oldLineObject = screen.allocateFullLineIfNecessary(screen.externalToInternalRow(row));
+            columns = rightCol - leftCol + 1;
+            TerminalRow lineObject = new TerminalRow(columns, 0);
+            lineObject.copyInterval(oldLineObject, leftCol, rightCol + 1, 0);
+
+            final char[] line = lineObject.mText;
+            final int charsUsedInLine = lineObject.getSpaceUsed();
+
+            long lastRunStyle = 0;
+            boolean lastRunInsideCursor = false;
+            boolean lastRunInsideSelection = false;
+            int lastRunStartColumn = -1;
+            int lastRunStartIndex = 0;
+            boolean lastRunFontWidthMismatch = false;
+            int currentCharIndex = 0;
+            float measuredWidthForRun = 0.f;
+
+            for (int column = 0; column < columns; ) {
+                int trueColumn = column + leftCol;
+                final char charAtIndex = line[currentCharIndex];
+                final boolean charIsHighsurrogate = Character.isHighSurrogate(charAtIndex);
+                final int charsForCodePoint = charIsHighsurrogate ? 2 : 1;
+                final int codePoint = charIsHighsurrogate ? Character.toCodePoint(charAtIndex, line[currentCharIndex + 1]) : charAtIndex;
+                final int codePointWcWidth = WcWidth.width(codePoint);
+                final boolean insideCursor = (cursorX == trueColumn || (codePointWcWidth == 2 && cursorX == trueColumn + 1));
+                final boolean insideSelection = column >= selx1 && column <= selx2;
+                final long style = lineObject.getStyle(column);
+
+                // Check if the measured text width for this code point is not the same as that expected by wcwidth().
+                // This could happen for some fonts which are not truly monospace, or for more exotic characters such as
+                // smileys which android font renders as wide.
+                // If this is detected, we draw this code point scaled to match what wcwidth() expects.
+                final float measuredCodePointWidth = (codePoint < asciiMeasures.length) ? asciiMeasures[codePoint] : mTextPaint.measureText(line,
+                    currentCharIndex, charsForCodePoint);
+
+                final boolean fontWidthMismatch = Math.abs(measuredCodePointWidth / mFontWidth - codePointWcWidth) > 0.01;
+
+                if (style != lastRunStyle || insideCursor != lastRunInsideCursor || insideSelection != lastRunInsideSelection || fontWidthMismatch || lastRunFontWidthMismatch) {
+                    if (column == 0) {
+                        // Skip first column as there is nothing to draw, just record the current style.
+                    } else {
+                        final int columnWidthSinceLastRun = column - lastRunStartColumn;
+                        final int charsSinceLastRun = currentCharIndex - lastRunStartIndex;
+                        int cursorColor = lastRunInsideCursor ? mEmulator.mColors.mCurrentColors[TextStyle.COLOR_INDEX_CURSOR] : 0;
+                        boolean invertCursorTextColor = false;
+                        if (lastRunInsideCursor && cursorShape == TerminalEmulator.TERMINAL_CURSOR_STYLE_BLOCK) {
+                            invertCursorTextColor = true;
+                        }
+
+                        drawTextRun(canvas, line, palette, heightOffset, lastRunStartColumn, columnWidthSinceLastRun,
+                            lastRunStartIndex, charsSinceLastRun, measuredWidthForRun,
+                            cursorColor, cursorShape, lastRunStyle, reverseVideo || invertCursorTextColor || lastRunInsideSelection);
+                    }
+                    measuredWidthForRun = 0.f;
+                    lastRunStyle = style;
+                    lastRunInsideCursor = insideCursor;
+                    lastRunInsideSelection = insideSelection;
+                    lastRunStartColumn = column;
+                    lastRunStartIndex = currentCharIndex;
+                    lastRunFontWidthMismatch = fontWidthMismatch;
+                }
+                measuredWidthForRun += measuredCodePointWidth;
+                column += codePointWcWidth;
+                currentCharIndex += charsForCodePoint;
+                while (currentCharIndex < charsUsedInLine && WcWidth.width(line, currentCharIndex) <= 0) {
+                    // Eat combining chars so that they are treated as part of the last non-combining code point,
+                    // instead of e.g. being considered inside the cursor in the next run.
+                    currentCharIndex += Character.isHighSurrogate(line[currentCharIndex]) ? 2 : 1;
+                }
+            }
+
+            final int columnWidthSinceLastRun = columns - lastRunStartColumn;
+            final int charsSinceLastRun = currentCharIndex - lastRunStartIndex;
+            int cursorColor = lastRunInsideCursor ? mEmulator.mColors.mCurrentColors[TextStyle.COLOR_INDEX_CURSOR] : 0;
+            boolean invertCursorTextColor = false;
+            if (lastRunInsideCursor && cursorShape == TerminalEmulator.TERMINAL_CURSOR_STYLE_BLOCK) {
+                invertCursorTextColor = true;
+            }
+            drawTextRun(canvas, line, palette, heightOffset, lastRunStartColumn, columnWidthSinceLastRun, lastRunStartIndex, charsSinceLastRun,
+                measuredWidthForRun, cursorColor, cursorShape, lastRunStyle, reverseVideo || invertCursorTextColor || lastRunInsideSelection);
+        }
+
+    }
+
+
 
     public float getFontWidth() {
         return mFontWidth;

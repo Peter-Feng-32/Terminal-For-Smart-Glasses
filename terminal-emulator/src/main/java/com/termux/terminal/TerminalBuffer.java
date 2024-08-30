@@ -10,7 +10,7 @@ import java.util.Arrays;
  */
 public final class TerminalBuffer {
 
-    TerminalRow[] mLines;
+    public TerminalRow[] mLines;
     /** The length of {@link #mLines}. */
     int mTotalRows;
     /** The number of rows and columns visible on the screen. */

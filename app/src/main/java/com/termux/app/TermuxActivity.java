@@ -249,6 +249,8 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
         setNewSessionButtonView();
 
+        setNewZ100SessionButtonView();
+
         setToggleKeyboardView();
 
         registerForContextMenu(mTerminalView);
@@ -580,6 +582,13 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
                 -1, null, null);
             return true;
         });
+    }
+
+    private void setNewZ100SessionButtonView() {
+        View Z100SessionButton = findViewById(R.id.new_z100_session_button);
+        String Z100_SESSION_NAME = "Z100";
+
+        Z100SessionButton.setOnClickListener(v -> mTermuxTerminalSessionActivityClient.addNewSession(false, Z100_SESSION_NAME));
     }
 
     private void setToggleKeyboardView() {

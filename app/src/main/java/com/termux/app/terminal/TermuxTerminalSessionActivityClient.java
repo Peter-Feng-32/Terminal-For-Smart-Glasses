@@ -31,6 +31,7 @@ import com.termux.terminal.TerminalColors;
 import com.termux.terminal.TerminalSession;
 import com.termux.terminal.TerminalSessionClient;
 import com.termux.terminal.TextStyle;
+import com.vuzix.ultralite.UltraliteSDK;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -293,7 +294,9 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
     public void setCurrentSession(TerminalSession session) {
         if (session == null) return;
 
-        if (mActivity.getTerminalView().attachSession(session)) {
+        UltraliteSDK ultraliteSDK = UltraliteSDK.get(mActivity);
+
+        if (mActivity.getTerminalView().attachSession(session, ultraliteSDK)) {
             // notify about switched session if not already displaying the session
             notifyOfSessionChange();
         }

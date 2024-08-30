@@ -10,6 +10,8 @@ android {
         implementation "androidx.core:core:1.6.0"
         implementation "com.google.android.material:material:1.4.0"
         implementation "com.google.guava:guava:24.1-jre"
+        implementation 'com.google.guava:listenablefuture:9999.0-empty-to-avoid-conflict-with-guava'
+
         implementation "io.noties.markwon:core:$markwonVersion"
         implementation "io.noties.markwon:ext-strikethrough:$markwonVersion"
         implementation "io.noties.markwon:linkify:$markwonVersion"

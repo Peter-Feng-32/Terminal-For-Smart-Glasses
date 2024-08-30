@@ -41,6 +41,7 @@ import com.termux.terminal.KeyHandler;
 import com.termux.terminal.TerminalEmulator;
 import com.termux.terminal.TerminalSession;
 import com.termux.view.textselection.TextSelectionCursorController;
+import com.vuzix.ultralite.UltraliteSDK;
 
 /** View displaying and interacting with a {@link TerminalSession}. */
 public final class TerminalView extends View {
@@ -56,6 +57,8 @@ public final class TerminalView extends View {
     public TerminalRenderer mRenderer;
 
     public TerminalViewClient mClient;
+
+    public UltraliteSDK ultraliteSDK = null;
 
     private TextSelectionCursorController mTextSelectionCursorController;
 
@@ -273,11 +276,12 @@ public final class TerminalView extends View {
      *
      * @param session The {@link TerminalSession} this view will be displaying.
      */
-    public boolean attachSession(TerminalSession session) {
+    public boolean attachSession(TerminalSession session, UltraliteSDK ultraliteSDK) {
         if (session == mTermSession) return false;
         mTopRow = 0;
 
         mTermSession = session;
+        this.ultraliteSDK = ultraliteSDK;
         mEmulator = null;
         mCombiningAccent = 0;
 
@@ -498,12 +502,20 @@ public final class TerminalView extends View {
      * @param textSize the new font size, in density-independent pixels.
      */
     public void setTextSize(int textSize) {
-        mRenderer = new TerminalRenderer(textSize, mRenderer == null ? Typeface.MONOSPACE : mRenderer.mTypeface);
+        if(isHostingZ100Session()) {
+            mRenderer = new Z100Renderer(textSize, mRenderer == null ? Typeface.MONOSPACE : mRenderer.mTypeface, ultraliteSDK);
+        } else {
+            mRenderer = new TerminalRenderer(textSize, mRenderer == null ? Typeface.MONOSPACE : mRenderer.mTypeface);
+        }
         updateSize();
     }
 
     public void setTypeface(Typeface newTypeface) {
-        mRenderer = new TerminalRenderer(mRenderer.mTextSize, newTypeface);
+        if(isHostingZ100Session()) {
+            mRenderer = new Z100Renderer(mRenderer.mTextSize, newTypeface, ultraliteSDK);
+        } else {
+            mRenderer = new TerminalRenderer(mRenderer.mTextSize, newTypeface);
+        }
         updateSize();
         invalidate();
     }
@@ -964,10 +976,22 @@ public final class TerminalView extends View {
         updateSize();
     }
 
+    private boolean isHostingZ100Session() {
+        String Z100_SESSION_NAME = "Z100";
+        return mTermSession != null && mTermSession.mSessionName == Z100_SESSION_NAME;
+    }
+
     /** Check if the terminal size in rows and columns should be updated. */
     public void updateSize() {
+
         int viewWidth = getWidth();
         int viewHeight = getHeight();
+
+        if(isHostingZ100Session()) {
+            viewWidth = UltraliteSDK.Canvas.WIDTH;
+            viewHeight = UltraliteSDK.Canvas.HEIGHT;
+        }
+
         if (viewWidth == 0 || viewHeight == 0 || mTermSession == null) return;
 
         // Set to 80 and 24 if you want to enable vttest.
@@ -1001,6 +1025,9 @@ public final class TerminalView extends View {
             }
 
             mRenderer.render(mEmulator, canvas, mTopRow, sel[0], sel[1], sel[2], sel[3]);
+            if(mRenderer instanceof Z100Renderer) {
+                ((Z100Renderer) mRenderer).renderToZ100(mEmulator, mTopRow);
+            }
 
             // render the text selection handles
             renderTextSelection();
