@@ -7,6 +7,9 @@ buildscript {
         classpath "com.android.tools.build:gradle:4.2.2"
     }
 }
+plugins {
+    id 'com.google.protobuf' version '0.8.12' apply false
+}
 
 allprojects {
     repositories {
@@ -19,3 +22,5 @@ allprojects {
 task clean(type: Delete) {
     delete rootProject.buildDir
 }
+
+

@@ -98,6 +98,24 @@
                         android:layout_weight="1"
                         android:text="@string/action_new_z100_session" />
 
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/captioning_turn_on_button"
+                        style="?android:attr/buttonBarButtonStyle"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:visibility="visible"
+                        android:text="@string/action_captioning_turn_on" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/captioning_turn_off_button"
+                        style="?android:attr/buttonBarButtonStyle"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:visibility="invisible"
+                        android:text="@string/action_captioning_turn_off" />
+
                 </LinearLayout>
             </LinearLayout>
 

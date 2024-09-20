@@ -44,6 +44,9 @@
     <!-- Terminal Sidebar and Shortcuts -->
     <string name="action_new_session">New session</string>
     <string name="action_new_z100_session">New Z100 session</string>
+    <string name="action_captioning_turn_on">Turn on RA</string>
+    <string name="action_captioning_turn_off">Turn off RA</string>
+
 
     <string name="action_new_session_failsafe">Failsafe</string>
     <string name="title_max_terminals_reached">Max terminals reached</string>

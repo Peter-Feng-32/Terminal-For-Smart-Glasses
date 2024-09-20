@@ -6,6 +6,7 @@ import android.os.Message;
 import android.system.ErrnoException;
 import android.system.Os;
 import android.system.OsConstants;
+import android.util.Log;
 
 import java.io.File;
 import java.io.FileDescriptor;
@@ -221,7 +222,9 @@ public final class TerminalSession extends TerminalOutput {
     }
 
     /** Notify the {@link #mClient} that the screen has changed. */
-    protected void notifyScreenUpdate() {
+    public void notifyScreenUpdate() {
+        Log.w("Test", "screen update notifieed");
+
         mClient.onTextChanged(this);
     }
 
@@ -291,6 +294,10 @@ public final class TerminalSession extends TerminalOutput {
 
     public int getPid() {
         return mShellPid;
+    }
+
+    public TerminalSessionClient getmClient() {
+        return mClient;
     }
 
     /** Returns the shell's working directory or null if it was unavailable. */

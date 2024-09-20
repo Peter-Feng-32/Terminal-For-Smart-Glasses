@@ -1,6 +1,8 @@
 package com.termux.app;
 
+import android.Manifest;
 import android.annotation.SuppressLint;
+import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.ActivityNotFoundException;
 import android.content.BroadcastReceiver;
@@ -9,9 +11,12 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
+import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.IBinder;
+import android.util.Log;
 import android.view.ContextMenu;
 import android.view.ContextMenu.ContextMenuInfo;
 import android.view.Gravity;
@@ -28,6 +33,11 @@ import android.widget.Toast;
 
 import com.termux.R;
 import com.termux.app.api.file.FileReceiverActivity;
+import com.termux.app.captioning.CaptioningService;
+import com.termux.app.remembrance_agent.DatabaseHelper;
+import com.termux.app.remembrance_agent.DocumentIndexer;
+import com.termux.app.remembrance_agent.InformationRetriever;
+import com.termux.app.remembrance_agent.RemembranceAgentService;
 import com.termux.app.terminal.TermuxActivityRootView;
 import com.termux.app.terminal.TermuxTerminalSessionActivityClient;
 import com.termux.app.terminal.io.TermuxTerminalExtraKeys;
@@ -51,6 +61,7 @@ import com.termux.shared.termux.interact.TextInputDialogUtils;
 import com.termux.shared.logger.Logger;
 import com.termux.shared.termux.TermuxUtils;
 import com.termux.shared.termux.settings.properties.TermuxAppSharedProperties;
+import com.termux.shared.termux.shell.command.runner.terminal.TermuxSession;
 import com.termux.shared.termux.theme.TermuxThemeUtils;
 import com.termux.shared.theme.NightMode;
 import com.termux.shared.view.ViewUtils;
@@ -62,6 +73,8 @@ import com.termux.view.TerminalViewClient;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.viewpager.widget.ViewPager;
 
@@ -194,6 +207,10 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
     private static final String LOG_TAG = "TermuxActivity";
 
+    String Z100_SESSION_NAME = "Z100";
+    private static final int REQUEST_AUDIO_PERMISSION_CODE = 1;
+
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         Logger.logDebug(LOG_TAG, "onCreate");
@@ -250,6 +267,10 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         setNewSessionButtonView();
 
         setNewZ100SessionButtonView();
+
+        setCaptioningTurnOffButtonView();
+
+        setCaptioningTurnOnButtonView();
 
         setToggleKeyboardView();
 
@@ -586,10 +607,79 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
     private void setNewZ100SessionButtonView() {
         View Z100SessionButton = findViewById(R.id.new_z100_session_button);
-        String Z100_SESSION_NAME = "Z100";
-
         Z100SessionButton.setOnClickListener(v -> mTermuxTerminalSessionActivityClient.addNewSession(false, Z100_SESSION_NAME));
     }
+
+    private void setCaptioningTurnOnButtonView() {
+        View captioningTurnOnButton = findViewById(R.id.captioning_turn_on_button);
+        View captioningTurnOffButton = findViewById(R.id.captioning_turn_off_button);
+
+        Activity activity = this;
+
+        View.OnClickListener captioningButtonListener = new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if(!checkAudioPermission()) {
+                    requestAudioPermission();
+                    return;
+                }
+
+                TermuxSession z100Session = null;
+                for (TermuxSession termuxSession : getTermuxService().getTermuxSessions()) {
+                    if(termuxSession.getTerminalSession().mSessionName == Z100_SESSION_NAME) {
+                        z100Session = termuxSession;
+                    }
+                }
+                if(z100Session == null) {
+                    return;
+                }
+
+                DatabaseHelper databaseHelper = new DatabaseHelper(getApplicationContext());
+                DocumentIndexer documentIndexer = new DocumentIndexer(databaseHelper);
+                documentIndexer.findDocuments();
+                InformationRetriever informationRetriever = new InformationRetriever(databaseHelper);
+
+                CaptioningService.setTerminalEmulator(z100Session.getTerminalSession().getEmulator());
+                CaptioningService.setTerminalSession(z100Session.getTerminalSession());
+
+                Intent captioningIntent = new Intent(activity, CaptioningService.class);
+                startService(captioningIntent);
+                captioningTurnOnButton.setVisibility(View.GONE);
+                captioningTurnOffButton.setVisibility(View.VISIBLE);
+            }
+        };
+
+        captioningTurnOnButton.setOnClickListener(captioningButtonListener);
+    }
+
+    private void setCaptioningTurnOffButtonView() {
+        View captioningTurnOnButton = findViewById(R.id.captioning_turn_on_button);
+        View captioningTurnOffButton = findViewById(R.id.captioning_turn_off_button);
+        Activity activity = this;
+
+        View.OnClickListener captioningButtonListener = new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent captioningIntent = new Intent(activity, CaptioningService.class);
+                stopService(captioningIntent);
+                captioningTurnOnButton.setVisibility(View.VISIBLE);
+                captioningTurnOffButton.setVisibility(View.GONE);
+
+            }
+        };
+
+        captioningTurnOffButton.setOnClickListener(captioningButtonListener);
+    }
+
+    private boolean checkAudioPermission() {
+        int result = ContextCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.RECORD_AUDIO);
+        return result == PackageManager.PERMISSION_GRANTED;
+    }
+
+    private void requestAudioPermission() {
+        ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.RECORD_AUDIO}, REQUEST_AUDIO_PERMISSION_CODE);
+    }
+
 
     private void setToggleKeyboardView() {
         findViewById(R.id.toggle_keyboard_button).setOnClickListener(v -> {
@@ -602,9 +692,6 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
             return true;
         });
     }
-
-
-
 
 
     @SuppressLint("RtlHardcoded")

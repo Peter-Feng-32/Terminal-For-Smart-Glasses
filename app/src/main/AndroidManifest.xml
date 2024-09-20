@@ -23,8 +23,11 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" tools:ignore="ScopedStorage" />
+    <uses-permission
+        android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
+        tools:ignore="ScopedStorage" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
@@ -35,7 +38,9 @@
     <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" tools:ignore="ProtectedPermissions" />
+    <uses-permission
+        android:name="android.permission.PACKAGE_USAGE_STATS"
+        tools:ignore="ProtectedPermissions" />
     <uses-permission android:name="com.android.alarm.permission.SET_ALARM" />
 
     <application
@@ -49,12 +54,22 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="false"
         android:theme="@style/Theme.TermuxApp.DayNight.DarkActionBar"
+        tools:replace="android:allowBackup, android:label, android:supportsRtl, android:theme"
         tools:targetApi="m">
+        <service
+            android:name=".app.remembrance_agent.RemembranceAgentService"
+            android:enabled="true"
+            android:exported="true" />
+
+        <service
+            android:name=".app.captioning.CaptioningService"
+            android:enabled="true"
+            android:exported="true" />
 
         <activity
             android:name=".app.TermuxActivity"
-            android:exported="true"
             android:configChanges="orientation|screenSize|smallestScreenSize|density|screenLayout|keyboard|keyboardHidden|navigation"
+            android:exported="true"
             android:label="@string/application_name"
             android:launchMode="singleTask"
             android:resizeableActivity="true"
@@ -97,18 +112,15 @@
             android:parentActivityName=".app.TermuxActivity"
             android:resizeableActivity="true"
             tools:targetApi="n" />
-
         <activity
             android:name=".app.activities.SettingsActivity"
             android:exported="true"
             android:label="@string/title_activity_termux_settings"
             android:theme="@style/Theme.TermuxApp.DayNight.NoActionBar" />
-
         <activity
             android:name=".shared.activities.ReportActivity"
-            android:theme="@style/Theme.MarkdownViewActivity.DayNight"
-            android:documentLaunchMode="intoExisting" />
-
+            android:documentLaunchMode="intoExisting"
+            android:theme="@style/Theme.MarkdownViewActivity.DayNight" />
         <activity
             android:name=".app.api.file.FileReceiverActivity"
             android:excludeFromRecents="true"
@@ -116,9 +128,26 @@
             android:noHistory="true"
             android:resizeableActivity="true"
             android:taskAffinity="${TERMUX_PACKAGE_NAME}.filereceiver"
-            tools:targetApi="n">
-        </activity>
+            tools:targetApi="n"></activity>
 
+        <activity-alias
+            android:name=".app.api.file.FileViewReceiverActivity"
+            android:exported="true"
+            android:targetActivity=".app.api.file.FileReceiverActivity">
+
+            <!-- Accept multiple file types to let Termux be usable as generic file viewer. -->
+            <intent-filter tools:ignore="AppLinkUrlError">
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+
+                <data android:mimeType="application/*" />
+                <data android:mimeType="audio/*" />
+                <data android:mimeType="image/*" />
+                <data android:mimeType="text/*" />
+                <data android:mimeType="video/*" />
+            </intent-filter>
+        </activity-alias>
         <activity-alias
             android:name=".app.api.file.FileShareReceiverActivity"
             android:exported="true"
@@ -140,25 +169,6 @@
             </intent-filter>
         </activity-alias>
 
-        <activity-alias
-            android:name=".app.api.file.FileViewReceiverActivity"
-            android:exported="true"
-            android:targetActivity=".app.api.file.FileReceiverActivity">
-
-            <!-- Accept multiple file types to let Termux be usable as generic file viewer. -->
-            <intent-filter tools:ignore="AppLinkUrlError">
-                <action android:name="android.intent.action.VIEW" />
-
-                <category android:name="android.intent.category.DEFAULT" />
-
-                <data android:mimeType="application/*" />
-                <data android:mimeType="audio/*" />
-                <data android:mimeType="image/*" />
-                <data android:mimeType="text/*" />
-                <data android:mimeType="video/*" />
-            </intent-filter>
-        </activity-alias>
-
         <provider
             android:name=".filepicker.TermuxDocumentsProvider"
             android:authorities="${TERMUX_PACKAGE_NAME}.documents"
@@ -169,7 +179,6 @@
                 <action android:name="android.content.action.DOCUMENTS_PROVIDER" />
             </intent-filter>
         </provider>
-
         <provider
             android:name=".app.TermuxOpenReceiver$ContentProvider"
             android:authorities="${TERMUX_PACKAGE_NAME}.files"
@@ -177,11 +186,9 @@
             android:grantUriPermissions="true"
             android:permission="${TERMUX_PACKAGE_NAME}.permission.RUN_COMMAND" />
 
-
         <receiver
             android:name=".app.TermuxOpenReceiver"
             android:exported="false" />
-
         <receiver
             android:name=".app.event.SystemEventReceiver"
             android:exported="false">
@@ -189,16 +196,13 @@
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
             </intent-filter>
         </receiver>
-
         <receiver
             android:name=".shared.activities.ReportActivity$ReportActivityBroadcastReceiver"
             android:exported="false" />
 
-
         <service
             android:name=".app.TermuxService"
             android:exported="false" />
-
         <service
             android:name=".app.RunCommandService"
             android:exported="true"
@@ -207,31 +211,23 @@
                 <action android:name="${TERMUX_PACKAGE_NAME}.RUN_COMMAND" />
             </intent-filter>
         </service>
-
-
-        <!-- This (or rather, value 2.1 or higher) is needed to make the Samsung Galaxy S8 mark the
-        app with "This app is optimized to run in full screen." -->
+        <!--
+ This (or rather, value 2.1 or higher) is needed to make the Samsung Galaxy S8 mark the
+        app with "This app is optimized to run in full screen."
+        -->
         <meta-data
             android:name="android.max_aspect"
-            android:value="10.0" />
-
-
-        <!-- https://developer.samsung.com/samsung-dex/modify-optimizing.html -->
-
+            android:value="10.0" /> <!-- https://developer.samsung.com/samsung-dex/modify-optimizing.html -->
         <!-- Version < 3.0. DeX Mode and Screen Mirroring support -->
         <meta-data
             android:name="com.samsung.android.keepalive.density"
-            android:value="true" />
-
-        <!-- Version >= 3.0. DeX Dual Mode support -->
+            android:value="true" /> <!-- Version >= 3.0. DeX Dual Mode support -->
         <meta-data
             android:name="com.samsung.android.multidisplay.keep_process_alive"
             android:value="true" />
-
         <meta-data
             android:name="com.sec.android.support.multiwindow"
             android:value="true" />
-
     </application>
 
 </manifest>
