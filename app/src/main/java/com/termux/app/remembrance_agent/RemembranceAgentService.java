@@ -246,7 +246,7 @@ public class RemembranceAgentService extends Service {
 
     /** Gets the API key from shared preference. */
     private static String getApiKey(Context context) {
-        return "AIzaSyDM2w_vhjkl36iOOd9Vr-1A7C7-1mb4j7A";
+        return "AIzaSyBm3bz-af0JUeQa2Jb6m-IT3ys6fmLbnpY";
         // return PreferenceManager.getDefaultSharedPreferences(context).getString(SHARE_PREF_API_KEY, "");
     }
 

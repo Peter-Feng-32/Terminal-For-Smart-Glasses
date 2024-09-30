@@ -44,7 +44,7 @@ public class TermuxApplication extends Application {
             // Google Play will install latest OpenSSL
             ProviderInstaller.installIfNeeded(getApplicationContext());
             SSLContext sslContext;
-            sslContext = SSLContext.getInstance("TLSv1.2");
+            sslContext = SSLContext.getInstance("TLSv1.3");
             sslContext.init(null, null, null);
             sslContext.createSSLEngine();
         } catch (GooglePlayServicesRepairableException | GooglePlayServicesNotAvailableException

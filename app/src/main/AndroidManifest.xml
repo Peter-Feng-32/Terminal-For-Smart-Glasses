@@ -42,7 +42,6 @@
         android:name="android.permission.PACKAGE_USAGE_STATS"
         tools:ignore="ProtectedPermissions" />
     <uses-permission android:name="com.android.alarm.permission.SET_ALARM" />
-
     <application
         android:name=".app.TermuxApplication"
         android:allowBackup="false"
