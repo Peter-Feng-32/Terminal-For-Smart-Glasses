@@ -641,8 +641,10 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
                 CaptioningService.setTerminalEmulator(z100Session.getTerminalSession().getEmulator());
                 CaptioningService.setTerminalSession(z100Session.getTerminalSession());
+                RemembranceAgentService.setTerminalEmulator(z100Session.getTerminalSession().getEmulator());
+                RemembranceAgentService.setTerminalSession(z100Session.getTerminalSession());
 
-                Intent captioningIntent = new Intent(activity, CaptioningService.class);
+                Intent captioningIntent = new Intent(activity, RemembranceAgentService.class);
                 startService(captioningIntent);
                 captioningTurnOnButton.setVisibility(View.GONE);
                 captioningTurnOffButton.setVisibility(View.VISIBLE);
@@ -660,7 +662,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         View.OnClickListener captioningButtonListener = new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                Intent captioningIntent = new Intent(activity, CaptioningService.class);
+                Intent captioningIntent = new Intent(activity, RemembranceAgentService.class);
                 stopService(captioningIntent);
                 captioningTurnOnButton.setVisibility(View.VISIBLE);
                 captioningTurnOffButton.setVisibility(View.GONE);

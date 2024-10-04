@@ -40,9 +40,16 @@ import com.termux.app.captioning.CaptioningFormatter;
 import com.termux.terminal.TerminalEmulator;
 import com.termux.terminal.TerminalSession;
 
+import java.io.BufferedReader;
 import java.io.File;
 
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
 
 public class RemembranceAgentService extends Service {
 
@@ -79,6 +86,8 @@ public class RemembranceAgentService extends Service {
     private CloudSpeechSessionFactory factory;
 
     File logs;
+    private int numUpdates = 0;
+    private final int QUERY_DELAY = 1;
 
     //My start-stop implementation
     private TranscriptionResultUpdatePublisher.UpdateType prevUpdateType;
@@ -87,17 +96,21 @@ public class RemembranceAgentService extends Service {
     private final TranscriptionResultUpdatePublisher transcriptUpdater =
         (formattedTranscript, updateType) -> {
 
-            Log.w("CaptioningFragment", "Test");
-
             if(updateType == TranscriptionResultUpdatePublisher.UpdateType.TRANSCRIPT_UPDATED) {
                 if(prevUpdateType == TranscriptionResultUpdatePublisher.UpdateType.TRANSCRIPT_FINALIZED) {
                     prevUpdateType = null;
-                    String escapeSeq = "\033[2J\033[H"; //Clear screen and move cursor to top left.
+                    // String escapeSeq = "\033[2J\033[H"; //Clear screen and move cursor to top left.
                     formatter.resetSavedCaption();
-                    terminalEmulator.append(escapeSeq.getBytes(), escapeSeq.getBytes(StandardCharsets.UTF_8).length);
+                    // terminalEmulator.append(escapeSeq.getBytes(), escapeSeq.getBytes(StandardCharsets.UTF_8).length);
                 }
-
-                handleRetrieval(formattedTranscript.toString());
+                if (numUpdates == QUERY_DELAY) {
+                    Log.w("RemembranceAgent", "Query: " + formattedTranscript.toString());
+                    String formatted = formatter.process(formattedTranscript.toString());
+                    queryRemembranceAgent(formatted);
+                    numUpdates = 0;
+                } else {
+                    numUpdates += 1;
+                }
             }
             if(updateType == TranscriptionResultUpdatePublisher.UpdateType.TRANSCRIPT_FINALIZED) {
                 recognizer.resetAndClearTranscript();
@@ -107,51 +120,20 @@ public class RemembranceAgentService extends Service {
 
     private Runnable readMicData =
         () -> {
-            Log.w("CaptioningFragment", "readMicData");
+            Log.w("RemembranceAgent", "readMicData");
             if (audioRecord.getState() != AudioRecord.STATE_INITIALIZED) {
                 return;
             }
             recognizer.init(CHUNK_SIZE_SAMPLES);
             while (audioRecord.getRecordingState() == AudioRecord.RECORDSTATE_RECORDING) {
                 audioRecord.read(buffer, 0, CHUNK_SIZE_SAMPLES * BYTES_PER_SAMPLE);
-                recognizer. processAudioBytes(buffer);
+                recognizer.processAudioBytes(buffer);
             }
 
             recognizer.stop();
         };
 
-    public static String getLastFiveWords(String input) {
-        // Split the input string into words
-        String[] words = input.trim().split("\\s+"); // Split by whitespace
-
-        // Calculate the starting index for the last five words
-        int start = Math.max(0, words.length - 5); // Ensure start index is not negative
-
-        // Create a sub-array for the last five words
-        String[] lastFiveWords = new String[words.length - start];
-        System.arraycopy(words, start, lastFiveWords, 0, lastFiveWords.length);
-
-        // Join the last five words back into a single string
-        return String.join(" ", lastFiveWords);
-    }
-
     String prevRetrieved = "";
-
-    private void handleRetrieval(String query) {
-        String escapeSeq = "\033[2J\033[H"; //Clear screen and move cursor to top left.
-        terminalEmulator.append(escapeSeq.getBytes(), escapeSeq.getBytes(StandardCharsets.UTF_8).length);
-        String lastFiveWords = getLastFiveWords(query);
-        String retrieved = informationRetriever.retrieve(lastFiveWords);
-        if(retrieved == null || retrieved == prevRetrieved) {
-            return;
-        }
-
-        String formatted = formatter.process(retrieved);
-        terminalEmulator.append(formatted.getBytes(StandardCharsets.UTF_8), formatted.getBytes(StandardCharsets.UTF_8).length);
-
-        prevRetrieved = retrieved;
-        terminalSession.notifyScreenUpdate();
-    }
 
     public RemembranceAgentService() {
     }
@@ -166,7 +148,15 @@ public class RemembranceAgentService extends Service {
     @RequiresApi(api = Build.VERSION_CODES.P)
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        RA_INDEX_EXEC = getApplicationContext().getFilesDir().getAbsolutePath() + "/home/remembrance-agent/bin/ra-index";
+        RA_RETRIEVE_EXEC = getApplicationContext().getFilesDir().getAbsolutePath() + "/home/remembrance-agent/bin/ra-retrieve";
+        RA_INDEX_PATH = getApplicationContext().getFilesDir().getAbsolutePath() + "/home/remembrance-agent/index";
+        RA_FILES_PATH = getApplicationContext().getFilesDir().getAbsolutePath() + "/home/remembrance-agent/files";
+
         initLanguageLocale();
+        indexRemembranceAgent();
+
+        startRemembranceAgent();
         constructRepeatingRecognitionSession();
         startRecording();
 
@@ -182,6 +172,7 @@ public class RemembranceAgentService extends Service {
         if(audioRecord != null) {
             audioRecord.stop();
         }
+        releaseRemembranceAgent();
     }
 
     /** Captioning Functions */
@@ -246,7 +237,7 @@ public class RemembranceAgentService extends Service {
 
     /** Gets the API key from shared preference. */
     private static String getApiKey(Context context) {
-        return "AIzaSyBm3bz-af0JUeQa2Jb6m-IT3ys6fmLbnpY";
+        return "YOUR API KEY";
         // return PreferenceManager.getDefaultSharedPreferences(context).getString(SHARE_PREF_API_KEY, "");
     }
 
@@ -260,5 +251,218 @@ public class RemembranceAgentService extends Service {
     public static void setInformationRetriever(InformationRetriever informationRetriever) {
         informationRetriever = informationRetriever;
     }
+
+    private OutputStream remembranceAgentOutputStream = null; // Write to RA here
+    private InputStream remembranceAgentInputStream = null; // Read from RA here
+    private OutputStream indexingOutputStream = null; // Write to RA here
+    private InputStream indexingInputStream = null; // Read from RA here
+
+    private Thread remembranceAgentThread = null;
+    private Thread indexingThread = null;
+
+    private String RA_INDEX_EXEC = null;
+    private String  RA_RETRIEVE_EXEC = null;
+    private String  RA_INDEX_PATH = null;
+    private String  RA_FILES_PATH = null;
+
+    public void startRemembranceAgent() {
+        Map<String, String> env = System.getenv();
+
+        String command = RA_RETRIEVE_EXEC + " " + RA_INDEX_PATH;
+        remembranceAgentThread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    // Send script into runtime process
+                    Process child = Runtime.getRuntime().exec(command);
+                    // Get input and output streams
+
+                    remembranceAgentOutputStream = child.getOutputStream();
+                    remembranceAgentInputStream = child.getInputStream();
+
+                    Thread outputListenerThread = new Thread(
+                        new Runnable() {
+                                @Override
+                                public void run() {
+                                    try (BufferedReader reader = new BufferedReader(new InputStreamReader(remembranceAgentInputStream))) {
+                                        String line;
+                                        // Continuously read from the InputStream
+                                        while ((line = reader.readLine()) != null) {
+                                            Log.w("Remembrance Agent", "Read: " + line);  // Process the data from the stream
+
+                                            String[] queryResult = parseResult(line);
+                                            if (queryResult.length == 2) {
+                                                String header = queryResult[0];
+                                                String title = queryResult[1];
+                                                String escapeSeq = "\033[2J\033[H"; //Clear screen and move cursor to top left.
+                                                Log.w("Remembrance Agent", header);
+                                                Log.w("Remembrance Agent", title);
+                                                terminalEmulator.append(escapeSeq.getBytes(), escapeSeq.getBytes(StandardCharsets.UTF_8).length);
+                                                terminalEmulator.append(header.getBytes(), header.getBytes(StandardCharsets.UTF_8).length);
+
+                                                escapeSeq = "\033[E"; //Go to new line
+                                                terminalEmulator.append(escapeSeq.getBytes(), escapeSeq.getBytes(StandardCharsets.UTF_8).length);
+                                                terminalEmulator.append(title.getBytes(), title.getBytes(StandardCharsets.UTF_8).length);
+                                            }
+
+                                            terminalSession.notifyScreenUpdate();
+
+                                        }
+                                    } catch (IOException e) {
+                                        e.printStackTrace();
+                                    }
+                                }
+                            }
+                        );
+                    outputListenerThread.start();
+
+                    child.waitFor();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                } finally {
+                    try {
+                        if (remembranceAgentOutputStream != null) {
+                            remembranceAgentOutputStream.close();
+                        }
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    try {
+                        if (remembranceAgentInputStream != null) {
+                            remembranceAgentInputStream.close();
+                        }
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        });
+        remembranceAgentThread.start();
+    }
+
+    public void indexRemembranceAgent() {
+        String command = RA_INDEX_EXEC + " -v " + RA_INDEX_PATH + " " + RA_FILES_PATH;
+        indexingThread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    Process child = Runtime.getRuntime().exec(new String[]{"su","-c", command});
+
+                    // Get input and output streams
+                    indexingOutputStream = child.getOutputStream();
+                    indexingInputStream = child.getInputStream();
+
+                    Thread outputListenerThread = new Thread(
+                        new Runnable() {
+                            @Override
+                            public void run() {
+                                try (BufferedReader reader = new BufferedReader(new InputStreamReader(indexingInputStream))) {
+                                    String line;
+                                    // Continuously read from the InputStream
+                                    while ((line = reader.readLine()) != null) {
+                                        Log.w("Remembrance Agent", "Indexing read: " + line);  // Process the data from the stream
+                                    }
+                                } catch (IOException e) {
+                                    e.printStackTrace();
+                                }
+                            }
+                        }
+                    );
+                    outputListenerThread.start();
+
+                    child.waitFor();
+                } catch (IOException e) {
+                    Log.w("Remembrance Agent", "IOException problem");
+                    e.printStackTrace();
+                } catch (InterruptedException e) {
+                    Log.w("Remembrance Agent", "Interrupted problem");
+                    e.printStackTrace();
+                } finally {
+                    try {
+                        if (indexingOutputStream != null) {
+                            indexingOutputStream.close();
+                        }
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    try {
+                        if (indexingInputStream != null) {
+                            indexingInputStream.close();
+                        }
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        });
+        indexingThread.start();
+    }
+
+
+    private void queryRemembranceAgent(final String query) {
+        String querycommand = "query\n";
+        String testquery = query + "\n";
+
+        if (remembranceAgentOutputStream != null) {
+            try {
+                remembranceAgentOutputStream.write(querycommand.getBytes(StandardCharsets.UTF_8));
+                remembranceAgentOutputStream.flush();
+
+                remembranceAgentOutputStream.write(testquery.getBytes(StandardCharsets.UTF_8));
+                remembranceAgentOutputStream.flush();
+                Log.w("Remembrance agent", "Flushed: " + testquery);
+
+                remembranceAgentOutputStream.write(5);
+                remembranceAgentOutputStream.write('\n');
+                remembranceAgentOutputStream.flush();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    private String[] parseResult(String result) {
+        String[] output = {};
+        if (result == ".") {
+            return output;
+        }
+        try {
+            String[] split = result.split("\\|");
+            String header = split[0];
+            String title = split[2];
+
+            return new String[]{header, title};
+        } catch (IndexOutOfBoundsException e) {
+            return output;
+        }
+    }
+
+    private void releaseRemembranceAgent() {
+        try {
+            if (remembranceAgentOutputStream != null) {
+                remembranceAgentOutputStream.close();
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        try {
+            if (remembranceAgentInputStream != null) {
+                remembranceAgentInputStream.close();
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        if (remembranceAgentThread != null) {
+            remembranceAgentThread.interrupt();
+        }
+        if (indexingThread != null) {
+            indexingThread.interrupt();
+        }
+    }
+
+
+
 }
 

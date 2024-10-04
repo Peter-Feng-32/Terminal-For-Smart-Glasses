@@ -238,7 +238,7 @@ public class CaptioningService extends Service {
 
     /** Gets the API key from shared preference. */
     private static String getApiKey(Context context) {
-        return "AIzaSyBm3bz-af0JUeQa2Jb6m-IT3ys6fmLbnpY";
+        return "YOUR API KEY";
         // return PreferenceManager.getDefaultSharedPreferences(context).getString(SHARE_PREF_API_KEY, "");
     }
 

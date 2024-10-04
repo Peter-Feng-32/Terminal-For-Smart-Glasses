@@ -509,20 +509,20 @@ public final class TerminalView extends View {
      * @param textSize the new font size, in density-independent pixels.
      */
     public void setTextSize(int textSize) {
-       // if(isHostingZ100Session()) {
-      //      mRenderer = new Z100Renderer(textSize, mRenderer == null ? Typeface.MONOSPACE : mRenderer.mTypeface, ultraliteSDK);
-      //  } else {
+        if(isHostingZ100Session()) {
+            mRenderer = new Z100Renderer(textSize, mRenderer == null ? Typeface.MONOSPACE : mRenderer.mTypeface, ultraliteSDK);
+        } else {
             mRenderer = new TerminalRenderer(textSize, mRenderer == null ? Typeface.MONOSPACE : mRenderer.mTypeface);
-     //   }
+        }
         updateSize();
     }
 
     public void setTypeface(Typeface newTypeface) {
-        //if(isHostingZ100Session()) {
-      //      mRenderer = new Z100Renderer(mRenderer.mTextSize, newTypeface, ultraliteSDK);
-       // } else {
+        if(isHostingZ100Session()) {
+            mRenderer = new Z100Renderer(mRenderer.mTextSize, newTypeface, ultraliteSDK);
+        } else {
             mRenderer = new TerminalRenderer(mRenderer.mTextSize, newTypeface);
-       // }
+        }
         updateSize();
         invalidate();
     }
