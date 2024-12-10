@@ -10,6 +10,9 @@ import com.termux.terminal.TerminalEmulator;
 import com.vuzix.ultralite.Layout;
 import com.vuzix.ultralite.UltraliteSDK;
 
+import java.util.ArrayDeque;
+import java.util.Queue;
+
 public class Z100Renderer extends TerminalRenderer{
     UltraliteSDK ultraliteSDK;
     public Z100Renderer(int textSize, Typeface typeface, UltraliteSDK ultraliteSDK) {
@@ -60,31 +63,30 @@ public class Z100Renderer extends TerminalRenderer{
     private boolean droppedBitmap = false;
 
     public void renderToZ100(TerminalEmulator terminalEmulator, int topRow) {
-        Bitmap bitmap = Bitmap.createBitmap(UltraliteSDK.Canvas.WIDTH, UltraliteSDK.Canvas.HEIGHT, Bitmap.Config.ARGB_8888);
-        Canvas canvas = new Canvas(bitmap);
-        this.render(terminalEmulator, canvas, topRow, -1, -1, -1, -1);
-
         Rect boundingBox;
         synchronized (lockBitmap) {
-            boundingBox = findBoundingBoxOfDifferences(original, bitmap);
-            if (boundingBox.bottom == boundingBox.top || boundingBox.left == boundingBox.right) {
-                return; // No changes
-            }
-
-            Bitmap glassesBitmap = Bitmap.createBitmap(bitmap, boundingBox.left, boundingBox.top, boundingBox.width(), boundingBox.height());
-
             synchronized (lockFrames) {
                 if (numFramesInTransit == frameLimit) {
                     droppedBitmap = true;
                     return;
                 }
+                Bitmap bitmap = Bitmap.createBitmap(UltraliteSDK.Canvas.WIDTH, UltraliteSDK.Canvas.HEIGHT, Bitmap.Config.ARGB_8888);
+                Canvas canvas = new Canvas(bitmap);
+                this.render(terminalEmulator, canvas, topRow, -1, -1, -1, -1);
 
-                boolean rendered = ultraliteSDK.getCanvas().drawBackground(glassesBitmap, boundingBox.left, boundingBox.top);
+                boundingBox = findBoundingBoxOfDifferences(original, bitmap);
+                if (boundingBox.bottom == boundingBox.top || boundingBox.left == boundingBox.right) {
+                    return; // No changes
+                }
+
+                Bitmap glassesBitmap = Bitmap.createBitmap(bitmap, boundingBox.left, boundingBox.top, boundingBox.width(), boundingBox.height());
+
+                ultraliteSDK.getCanvas().drawBackground(glassesBitmap, boundingBox.left, boundingBox.top);
                 numFramesInTransit++;
                 ultraliteSDK.getCanvas().commit(new CallbackHandler(terminalEmulator, topRow, callbackId++));
-            }
+                original = bitmap;
 
-            original = bitmap;
+            }
         }
     }
 

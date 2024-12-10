@@ -268,10 +268,6 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
         setNewZ100SessionButtonView();
 
-        setCaptioningTurnOffButtonView();
-
-        setCaptioningTurnOnButtonView();
-
         setToggleKeyboardView();
 
         registerForContextMenu(mTerminalView);
@@ -608,69 +604,6 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
     private void setNewZ100SessionButtonView() {
         View Z100SessionButton = findViewById(R.id.new_z100_session_button);
         Z100SessionButton.setOnClickListener(v -> mTermuxTerminalSessionActivityClient.addNewSession(false, Z100_SESSION_NAME));
-    }
-
-    private void setCaptioningTurnOnButtonView() {
-        View captioningTurnOnButton = findViewById(R.id.captioning_turn_on_button);
-        View captioningTurnOffButton = findViewById(R.id.captioning_turn_off_button);
-
-        Activity activity = this;
-
-        View.OnClickListener captioningButtonListener = new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if(!checkAudioPermission()) {
-                    requestAudioPermission();
-                    return;
-                }
-
-                TermuxSession z100Session = null;
-                for (TermuxSession termuxSession : getTermuxService().getTermuxSessions()) {
-                    if(termuxSession.getTerminalSession().mSessionName == Z100_SESSION_NAME) {
-                        z100Session = termuxSession;
-                    }
-                }
-                if(z100Session == null) {
-                    return;
-                }
-
-                DatabaseHelper databaseHelper = new DatabaseHelper(getApplicationContext());
-                DocumentIndexer documentIndexer = new DocumentIndexer(databaseHelper);
-                documentIndexer.findDocuments();
-                InformationRetriever informationRetriever = new InformationRetriever(databaseHelper);
-
-                CaptioningService.setTerminalEmulator(z100Session.getTerminalSession().getEmulator());
-                CaptioningService.setTerminalSession(z100Session.getTerminalSession());
-                RemembranceAgentService.setTerminalEmulator(z100Session.getTerminalSession().getEmulator());
-                RemembranceAgentService.setTerminalSession(z100Session.getTerminalSession());
-
-                Intent captioningIntent = new Intent(activity, RemembranceAgentService.class);
-                startService(captioningIntent);
-                captioningTurnOnButton.setVisibility(View.GONE);
-                captioningTurnOffButton.setVisibility(View.VISIBLE);
-            }
-        };
-
-        captioningTurnOnButton.setOnClickListener(captioningButtonListener);
-    }
-
-    private void setCaptioningTurnOffButtonView() {
-        View captioningTurnOnButton = findViewById(R.id.captioning_turn_on_button);
-        View captioningTurnOffButton = findViewById(R.id.captioning_turn_off_button);
-        Activity activity = this;
-
-        View.OnClickListener captioningButtonListener = new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Intent captioningIntent = new Intent(activity, RemembranceAgentService.class);
-                stopService(captioningIntent);
-                captioningTurnOnButton.setVisibility(View.VISIBLE);
-                captioningTurnOffButton.setVisibility(View.GONE);
-
-            }
-        };
-
-        captioningTurnOffButton.setOnClickListener(captioningButtonListener);
     }
 
     private boolean checkAudioPermission() {
